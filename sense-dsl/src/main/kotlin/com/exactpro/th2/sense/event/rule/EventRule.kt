@@ -1,0 +1,98 @@
+/*
+ * Copyright 2022 Exactpro (Exactpro Systems Limited)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.exactpro.th2.sense.event.rule
+
+import com.exactpro.th2.sense.api.Event
+import com.exactpro.th2.sense.api.EventProcessor
+import com.exactpro.th2.sense.api.EventResult
+import com.exactpro.th2.sense.api.ProcessorContext
+import com.exactpro.th2.sense.api.ProcessorId
+import com.exactpro.th2.sense.event.dsl.EventRule
+import com.exactpro.th2.sense.event.dsl.EventRuleBuilder
+
+/**
+ * It is a base class for rule implementation
+ *
+ * You must implement method [setup] to configure mapping between events and their types.
+ *
+ * To configure it you should use a DSL provided by [EventRuleBuilder]
+ *
+ * NOTES:
+ *
+ * 1. `allOf` methods accepts the value only if **all** conditions are passed
+ * 2. `anyOf` methods accepts the value if **any** condition is passed
+ * 3. `noneOf` methods accepts the value if **none** of the conditions is passed
+ *
+ * The base structure is:
+ * ```
+ * override fun EventRuleBuilder.setup() {
+ *   eventType("<user type>") whenever <allOf|anyOf|noneOf> {
+ *     <event field> <operation> <value>
+ *     or
+ *     <event field> <allOf|anyOf|noneOf> {
+ *       <operation>(<value>)
+ *       [<operation>(<value>)]
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * ### Examples:
+ *
+ * Event has name that starts with "Test"
+ *
+ * ```kotlin
+ * override fun EventRuleBuilder.setup() {
+ *   eventType("your type") whenever allOf {
+ *     name startsWith "Test"
+ *   }
+ * }
+ * ```
+ *
+ * Event has name that starts with "Test" and contains "Execution"
+ * ```kotlin
+ * override fun EventRuleBuilder.setup() {
+ *   eventType("your type") whenever allOf {
+ *     name allOf {
+ *       startsWith("Test")
+ *       contains("Execution")
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * Event has a parent with type "ParentType"
+ * ```kotlin
+ * override fun EventRuleBuilder.setup() {
+ *   eventType("your type") whenever allOf {
+ *     parentEvent allOf {
+ *       type equal "ParentType"
+ *     }
+ *   }
+ * }
+ * ```
+ */
+class EventRule(
+    override val id: ProcessorId,
+    setup: EventRuleBuilder.() -> Unit,
+) : EventProcessor {
+    private val rule: EventRule = EventRule.builder().apply { setup() }.build()
+
+    override fun ProcessorContext.process(event: Event): EventResult {
+        return rule.handle(this, event)
+    }
+}

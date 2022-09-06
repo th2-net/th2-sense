@@ -1,0 +1,8 @@
+plugins {
+    id 'com.exactpro.th2.common-convensions'
+}
+
+dependencies {
+    api 'com.exactpro.th2:grpc-data-provider:1.1.0'
+    api 'com.fasterxml.jackson.core:jackson-annotations'
+}

@@ -1,0 +1,41 @@
+plugins {
+    id 'com.exactpro.th2.common-convensions'
+    id 'application'
+    id 'com.palantir.docker' version '0.25.0'
+    id 'org.jetbrains.kotlin.kapt'
+}
+
+dependencies {
+    implementation 'com.exactpro.th2:common:3.40.0'
+
+    api project(':sense-api')
+    api project(':sense-dsl')
+    implementation 'com.google.guava:guava'
+    implementation('io.prometheus:simpleclient') {
+        because('export stats to grafana')
+    }
+    implementation('com.exactpro.th2:grpc-crawler-data-processor:0.3.1-update-rpt-grpc-SNAPSHOT'){
+        because('crawler source')
+    }
+
+    compileOnly 'com.google.auto.service:auto-service-annotations:1.0.1'
+    kapt 'com.google.auto.service:auto-service:1.0.1'
+}
+
+applicationName = 'service'
+
+distTar {
+    archiveFileName.set("${applicationName}.tar")
+}
+
+dockerPrepare {
+    dependsOn distTar
+}
+
+docker {
+    copySpec.from(tarTree("$buildDir/distributions/${applicationName}.tar"))
+}
+
+application {
+    mainClass.set('com.exactpro.th2.sense.app.bootstrap.Main')
+}

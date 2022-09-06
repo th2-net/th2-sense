@@ -1,0 +1,7 @@
+plugins {
+    id 'com.exactpro.th2.common-convensions'
+}
+
+dependencies {
+    api project(':sense-api')
+}
