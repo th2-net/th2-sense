@@ -169,3 +169,106 @@ override fun EventRuleBuilder.setup() {
   }
 }
 ```
+
+## Running in th2
+
+### Configuration
+
+#### source
+
+The source type. Currently supported:
++ mq - from MQ
++ crawler - from Crawler
+
+##### mq
+
+No additional configuration
+
+##### crawler
+
+**name** - processor name
+
+**version** - processor version
+
+#### processors
+
+The list of processor with their configurations
+
+Example:
+
+```yaml
+processors:
+  - id: test
+    param1: a
+  - id: test2
+  - id: test3
+    param2: B
+    param3: 1
+```
+
+#### statistic
+
+The buckets in which events and messages should be collected.
+
+**eventBuckets** - the buckets for events. Default value: [PT1S, PT1M, PT1H]
+**messagesBuckets** - the buckets for messages. Default value: [PT1S, PT1M, PT1H]
+
+CR example:
+
+```yaml
+apiVersion: th2.exactpro.com/v1
+kind: Th2Box
+metadata:
+  name: sense
+spec:
+  image-name: <image-name>
+  image-version: 0.0.1
+  type: th2-act
+  custom-config:
+    source:
+      type: crawler
+      name: sense
+      version: 1
+      # or
+      # type: mq
+    processors:
+      - id: "processor id"
+        param: 1
+  pins:
+    - name: server
+      connection-type: grpc-server
+      service-classes:
+      - com.exactpro.th2.crawler.dataprocessor.grpc.DataProcessorService
+      - th2.crawler.dataprocessor.DataProcessor
+    - name: provider
+      connection-type: grpc-client
+      service-class: com.exactpro.th2.dataprovider.grpc.DataProviderService
+    - name: input_events
+      connection-type: mq
+      attributes:
+        - subscribe
+        - event
+    - name: input_messages
+      connection-type: mq
+      attributes:
+        - subscribe
+        - group
+  extended-settings:
+    service:
+      enabled: true
+      type: NodePort
+      endpoints:
+        - name: 'grpc'
+          targetPort: 8080
+          nodePort: 30178
+    envVariables:
+      JAVA_TOOL_OPTIONS: "-XX:+ExitOnOutOfMemoryError"
+    resources:
+      limits:
+        memory: 200Mi
+        cpu: 200m
+      requests:
+        memory: 110Mi
+        cpu: 50m
+
+```
