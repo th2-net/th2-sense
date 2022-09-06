@@ -1,0 +1,8 @@
+variables:
+  APP_NAME: th2-sense
+  DOCKER_PUBLISH_ENABLED: "false"
+
+include:
+  - project: vivarium/th2/pipelines
+    ref: v2
+    file: /.gitlab-ci-java.yml
