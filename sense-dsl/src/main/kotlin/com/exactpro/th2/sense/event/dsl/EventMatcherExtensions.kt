@@ -18,6 +18,7 @@ package com.exactpro.th2.sense.event.dsl
 
 import java.time.Instant
 import kotlin.properties.ReadOnlyProperty
+import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.api.ProcessorContext
 import com.exactpro.th2.sense.event.dsl.impl.AllEventTypeMatcher
@@ -36,6 +37,7 @@ val AllOfEventMatcherBuilder.name: SimpleMatcher<String> by matcher { eventName 
 val AllOfEventMatcherBuilder.type: SimpleMatcher<String> by matcher { eventType }
 val AllOfEventMatcherBuilder.startTimestamp: SimpleMatcher<Instant> by matcher { startTimestamp.toInstant() }
 val AllOfEventMatcherBuilder.endTimestamp: SimpleMatcher<Instant> by matcher { endTimestamp.toInstant() }
+val AllOfEventMatcherBuilder.status: SimpleMatcher<EventStatus> by matcher { status }
 
 infix fun RelatedEventMatcherBuilder.allOf(block: AllOfEventMatcherBuilder.() -> Unit) {
     register(matchAllOfInternal(block))

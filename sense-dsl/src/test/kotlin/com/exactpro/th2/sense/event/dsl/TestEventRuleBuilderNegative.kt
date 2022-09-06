@@ -17,6 +17,7 @@
 package com.exactpro.th2.sense.event.dsl
 
 import java.time.Instant
+import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.event.dsl.util.createEvent
 import org.junit.jupiter.api.Assertions
@@ -82,7 +83,10 @@ internal class TestEventRuleBuilderNegative : AbstractRuleBuilderTest() {
             }, createEvent()),
             arguments(setupFun {
                 endTimestamp equal Instant.MIN
-            }, createEvent())
+            }, createEvent()),
+            arguments(setupFun {
+                status equal EventStatus.SUCCESS
+            }, createEvent(status = EventStatus.FAILED)),
         )
 
         private fun setupFun(setup: AllOfEventMatcherBuilder.() -> Unit): AllOfEventMatcherBuilder.() -> Unit = setup

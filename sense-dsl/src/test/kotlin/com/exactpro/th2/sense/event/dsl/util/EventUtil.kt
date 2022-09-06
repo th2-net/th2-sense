@@ -18,6 +18,7 @@ package com.exactpro.th2.sense.event.dsl.util
 
 import java.time.Instant
 import com.exactpro.th2.common.grpc.EventID
+import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.sense.api.Event
 import com.google.protobuf.Timestamp
 
@@ -26,9 +27,11 @@ fun createEvent(
     type: String = "Default Time",
     startTime: Instant = Instant.now(),
     endTime: Instant = startTime.plusSeconds(1),
+    status: EventStatus = EventStatus.SUCCESS,
     parentEventID: EventID? = null
 ): Event = Event.newBuilder()
     .setEventId(EventID.newBuilder().setId("${System.nanoTime()}").build())
+    .setStatus(status)
     .setEventName(name)
     .setEventType(type)
     .setStartTimestamp(startTime.toTimestamp())

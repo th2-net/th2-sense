@@ -29,7 +29,7 @@ object GrafanaEventStatistic : EventStatistic {
         get() = throw UnsupportedOperationException("statistic for grafana does not collect data in memory")
 
     override fun update(type: EventType, event: Event, currentTime: Instant) {
-        EVENTS_COUNTER.labels(type.type).inc()
+        EVENTS_COUNTER.labels(event.status.name, type.type).inc()
     }
 
     override fun refresh(currentTime: Instant) {
@@ -37,7 +37,8 @@ object GrafanaEventStatistic : EventStatistic {
     }
 
     private const val TYPE_LABEL = "type"
-    private val EVENTS_COUNTER = Counter.build("th2_sense_event_counter", "counts number of events by usertype")
-        .labelNames(TYPE_LABEL)
+    private const val STATUS_LABEL = "status"
+    private val EVENTS_COUNTER = Counter.build("th2_sense_event_counter", "counts number of events by usertype and event status")
+        .labelNames(STATUS_LABEL, TYPE_LABEL)
         .register()
 }
