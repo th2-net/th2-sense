@@ -31,6 +31,11 @@ interface EventTypeMather {
 }
 
 @RuleDsl
+fun interface EventTypeSupplier {
+    fun ProcessorContext.get(event: Event): EventType
+}
+
+@RuleDsl
 object SimpleMatchContext
 
 typealias SimpleMatchFunction<T> = SimpleMatchContext.(value: T) -> Boolean
@@ -113,7 +118,7 @@ interface AllOfEventMatcherBuilder {
  */
 @RuleDsl
 class EventRuleBuilder {
-    private val matcherByType: MutableMap<EventType, EventTypeMather> = linkedMapOf()
+    private val matcherByType: MutableList<Pair<EventTypeSupplier, EventTypeMather>> = arrayListOf()
 
     fun allOf(block: AllOfEventMatcherBuilder.() -> Unit): EventTypeMather = matchAllOfInternal(block)
 
@@ -121,12 +126,19 @@ class EventRuleBuilder {
 
     fun noneOf(block: EventMatcherBuilder.() -> Unit): EventTypeMather = matchNoneOfInternal(block)
 
-    infix fun EventType.whenever(matcher: EventTypeMather) {
-        val prev = matcherByType.put(this, matcher)
-        check(prev == null) { "duplicated matcher for event type $this" }
+    infix fun EventTypeSupplier.whenever(matcher: EventTypeMather) {
+        this@EventRuleBuilder.matcherByType += this to matcher
     }
 
-    fun eventType(name: String): EventType = EventType(name)
+    /**
+     * Creates a constant event type
+     */
+    fun eventType(name: String): EventTypeSupplier = dynamicEventType { EventType(name) }
+
+    /**
+     * Allows to create an event type based on the matched event data
+     */
+    fun dynamicEventType(supplier: EventTypeSupplier): EventTypeSupplier = supplier
 
     internal fun build(): EventRule = EventRule(matcherByType)
 }

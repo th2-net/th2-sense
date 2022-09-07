@@ -23,21 +23,23 @@ import com.exactpro.th2.sense.api.ProcessorContext
 import mu.KotlinLogging
 
 class EventRule(
-    private val matchers: Map<EventType, EventTypeMather>
+    private val matchers: List<Pair<EventTypeSupplier, EventTypeMather>>
 ) {
     fun handle(context: ProcessorContext, event: Event): EventResult {
-        return matchers.asSequence()
-            .filter { (type, matcher) ->
-                LOGGER.trace { "Checking event '${event.eventId.id}' by mather for type $type" }
-                matcher.match(context, event).also {
-                    if (it) {
-                        LOGGER.trace { "Event '${event.eventId.id}' is accepted as type $type" }
+        return matchers.firstNotNullOfOrNull { (typeSupplier, matcher) ->
+                LOGGER.trace { "Checking event '${event.eventId.id}' by mather" }
+                matcher.match(context, event).let { match ->
+                    if (match) {
+                        typeSupplier.run { context.get(event) }
+                            .also { type ->
+                                LOGGER.trace { "Event '${event.eventId.id}' is accepted as type $type" }
+                            }
                     } else {
-                        LOGGER.trace { "Event '${event.eventId.id}' is not accepted as type $type" }
+                        LOGGER.trace { "Event '${event.eventId.id}' is not accepted" }
+                        null
                     }
                 }
-            }
-            .firstOrNull()?.run { EventResult.Accept(key) }
+            }?.let(EventResult::Accept)
             ?: EventResult.Skip
     }
 
