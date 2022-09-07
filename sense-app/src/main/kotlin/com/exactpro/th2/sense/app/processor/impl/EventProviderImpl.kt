@@ -58,9 +58,9 @@ class EventProviderImpl(
         if (!event.hasParentEventId()) {
             return null
         }
-        var parent: Event?
+        var parent: Event? = null
         do {
-            parent = findParentFor(event)
+            parent = findParentFor(parent ?: event)
         } while (parent != null && parent.hasParentEventId())
         return parent
     }
