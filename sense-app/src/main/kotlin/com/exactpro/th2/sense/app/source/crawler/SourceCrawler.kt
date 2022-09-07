@@ -64,6 +64,8 @@ class SourceCrawler(
     override fun intervalStart(request: IntervalInfo, responseObserver: StreamObserver<Empty>) {
         LOGGER.info { "Start of interval from ${request.startTime.toInstant()} to ${request.endTime.toInstant()}" }
         currentTime = request.endTime.toInstant()
+        responseObserver.onNext(Empty.getDefaultInstance())
+        responseObserver.onCompleted()
     }
 
     override fun sendEvent(request: EventDataRequest, responseObserver: StreamObserver<EventResponse>) {
