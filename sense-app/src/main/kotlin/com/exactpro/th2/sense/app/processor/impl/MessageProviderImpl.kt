@@ -30,7 +30,7 @@ class MessageProviderImpl(
     cachingConfiguration: CachingConfiguration,
 ) : MessageProvider {
     private val messagesCache: Cache<MessageID, List<Message>> = CacheBuilder.newBuilder()
-        .maximumSize(cachingConfiguration.maxSize)
+//        .maximumSize(cachingConfiguration.maxSize)
         .maximumWeight(cachingConfiguration.maxWeightInBytes)
         .weigher { _: MessageID, value: List<Message> ->
             value.sumOf { it.serializedSize }

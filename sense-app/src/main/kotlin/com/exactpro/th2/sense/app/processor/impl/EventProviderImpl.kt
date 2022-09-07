@@ -30,7 +30,7 @@ class EventProviderImpl(
     cachingConfiguration: CachingConfiguration,
 ) : EventProvider {
     private val eventsCache: Cache<EventID, Event> = CacheBuilder.newBuilder()
-        .maximumSize(cachingConfiguration.maxSize)
+//        .maximumSize(cachingConfiguration.maxSize)
         .maximumWeight(cachingConfiguration.maxWeightInBytes)
         .weigher { _: EventID, value: Event -> value.body.size() }
         .build()
