@@ -130,7 +130,11 @@ class Microservice : App {
         val server = commonFactory.grpcRouter.startServer(sourceCrawler)
         closeResource("crawler processor", server::shutdown)
 
-        return sourceCrawler.events
+        return object : Source<Event> by sourceCrawler.events {
+            override fun start() {
+                server.start()
+            }
+        }
     }
 
     companion object {
