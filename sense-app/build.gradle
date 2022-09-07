@@ -17,6 +17,9 @@ dependencies {
     implementation('com.exactpro.th2:grpc-crawler-data-processor:0.3.1-update-rpt-grpc-SNAPSHOT'){
         because('crawler source')
     }
+    implementation('com.fasterxml.jackson.module:jackson-module-kotlin') {
+        because('custom subtype mapping for processor settings')
+    }
 
     compileOnly 'com.google.auto.service:auto-service-annotations:1.0.1'
     kapt 'com.google.auto.service:auto-service:1.0.1'

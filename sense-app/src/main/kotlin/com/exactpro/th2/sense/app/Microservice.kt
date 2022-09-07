@@ -44,6 +44,9 @@ import com.exactpro.th2.sense.app.source.event.MqEventSource
 import com.exactpro.th2.sense.app.statistic.impl.AggregatedEventStatistic
 import com.exactpro.th2.sense.app.statistic.impl.BucketEventStatistic
 import com.exactpro.th2.sense.app.statistic.impl.GrafanaEventStatistic
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.jsontype.NamedType
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.auto.service.AutoService
 import mu.KotlinLogging
 
@@ -54,22 +57,22 @@ class Microservice : App {
         commonFactory: AbstractCommonFactory,
         closeResource: (name: String, action: () -> Unit) -> Unit,
     ) {
+        val processorProvider = ServiceLoaderProcessorProvider.create<EventProcessor, EventProcessorFactory<*>>()
+        val mapper = configureObjectMapper(processorProvider)
         val (
             sourceCfg: SourceConfiguration,
             processors: Map<ProcessorId, ProcessorSettings>,
             statistic: StatisticConfiguration,
             messagesCaching: CachingConfiguration,
             eventsCaching: CachingConfiguration,
-        ) = checkNotNull(commonFactory.getCustomConfiguration(SenseAppConfiguration::class.java)) {
+        ) = checkNotNull(commonFactory.getCustomConfiguration(SenseAppConfiguration::class.java, mapper)) {
             "cannot read configuration"
         }
         val dataProvider = commonFactory.grpcRouter.getService(DataProviderService::class.java)
         val eventProvider: EventProvider = EventProviderImpl(dataProvider, eventsCaching)
         val messageProvider: MessageProvider = MessageProviderImpl(dataProvider, messagesCaching)
 
-        val processorProvider = ServiceLoaderProcessorProvider.create<EventProcessor, EventProcessorFactory<*>>(processors)
-
-        val holder = ProcessorHolder(processorProvider.processors) {
+        val holder = ProcessorHolder(processorProvider.loadProcessors(processors)) {
             LOGGER.info { "Creating context for event processor $it" }
             ProcessorContextImpl(eventProvider, messageProvider)
         }
@@ -108,6 +111,16 @@ class Microservice : App {
         MqSourceConfiguration -> MqEventSource(commonFactory.eventBatchRouter)/* to MqMessageSource(commonFactory.messageRouterMessageGroupBatch)*/
     }
 
+    private fun configureObjectMapper(processorProvider: ServiceLoaderProcessorProvider<EventProcessor, EventProcessorFactory<*>>): ObjectMapper {
+        val processorSettings = processorProvider.processorSettings.asSequence()
+            .map { (id, clazz) -> NamedType(clazz, id.name) }
+            .toList().toTypedArray()
+        if (processorSettings.isNotEmpty()) {
+            MAPPER.registerSubtypes(*processorSettings)
+        }
+        return MAPPER
+    }
+
     private fun setupCrawler(
         commonFactory: AbstractCommonFactory,
         sourceCfg: CrawlerSourceConfiguration,
@@ -122,5 +135,6 @@ class Microservice : App {
 
     companion object {
         private val LOGGER = KotlinLogging.logger { }
+        private val MAPPER: ObjectMapper = jacksonObjectMapper()
     }
 }

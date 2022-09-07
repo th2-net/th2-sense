@@ -20,6 +20,7 @@ import java.util.ServiceLoader
 import java.util.ServiceLoader.Provider
 import java.util.function.Function
 import java.util.stream.Collectors
+import java.util.stream.Stream
 import com.exactpro.th2.sense.api.Processor
 import com.exactpro.th2.sense.api.ProcessorFactory
 import com.exactpro.th2.sense.api.ProcessorId
@@ -28,29 +29,34 @@ import com.exactpro.th2.sense.app.processor.ProcessorProvider
 import mu.KotlinLogging
 
 class ServiceLoaderProcessorProvider<P : Processor, T : ProcessorFactory<P, *>>(
-    processorFactoryClass: Class<out T>,
-    settings: Map<ProcessorId, ProcessorSettings>,
-    classLoader: ClassLoader = ServiceLoaderProcessorProvider::class.java.classLoader,
+    private val processorFactoryClass: Class<out T>,
+    private val classLoader: ClassLoader = ServiceLoaderProcessorProvider::class.java.classLoader,
 ) : ProcessorProvider<P> {
-    override val processors: Map<ProcessorId, P> = classLoader.load(processorFactoryClass, settings)
+    override val processorSettings: Map<ProcessorId, Class<out ProcessorSettings>>
+        get() = classLoader.factories(processorFactoryClass)
+            .collect(Collectors.toUnmodifiableMap(
+                { it.id },
+                { it.settings },
+            ))
+
+    override fun loadProcessors(settings: Map<ProcessorId, ProcessorSettings>): Map<ProcessorId, P> {
+        return classLoader.load(processorFactoryClass, settings)
+    }
 
     companion object {
         private val LOGGER = KotlinLogging.logger { }
 
         @JvmStatic
         inline fun <P : Processor, reified T : ProcessorFactory<P, *>> create(
-            settings: Map<ProcessorId, ProcessorSettings>,
             classLoader: ClassLoader = ServiceLoaderProcessorProvider::class.java.classLoader,
         ): ServiceLoaderProcessorProvider<P, T> =
-            ServiceLoaderProcessorProvider(T::class.java, settings, classLoader)
+            ServiceLoaderProcessorProvider(T::class.java, classLoader)
 
         @JvmStatic
         private fun <P : Processor, T : ProcessorFactory<P, *>> ClassLoader.load(
             clazz: Class<out T>,
             settingsById: Map<ProcessorId, ProcessorSettings>,
-        ): Map<ProcessorId, P> = ServiceLoader.load(clazz, this)
-            .stream()
-            .map(Provider<out T>::get)
+        ): Map<ProcessorId, P> = factories(clazz)
             .filter {
                 val enabled = it.id in settingsById.keys
                 if (!enabled) {
@@ -68,5 +74,11 @@ class ServiceLoaderProcessorProvider<P : Processor, T : ProcessorFactory<P, *>>(
             )).also {
                 LOGGER.info { "Loaded ${it.size} processor(s): ${it.keys}" }
             }
+
+        @JvmStatic
+        private fun <P : Processor, T : ProcessorFactory<P, *>> ClassLoader.factories(clazz: Class<out T>): Stream<T> =
+            ServiceLoader.load(clazz, this)
+                .stream()
+                .map(Provider<out T>::get)
     }
 }

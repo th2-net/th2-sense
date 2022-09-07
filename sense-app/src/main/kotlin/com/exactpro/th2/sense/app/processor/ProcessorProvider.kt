@@ -18,7 +18,9 @@ package com.exactpro.th2.sense.app.processor
 
 import com.exactpro.th2.sense.api.Processor
 import com.exactpro.th2.sense.api.ProcessorId
+import com.exactpro.th2.sense.api.ProcessorSettings
 
 interface ProcessorProvider<out T : Processor> {
-    val processors: Map<ProcessorId, T>
+    val processorSettings: Map<ProcessorId, Class<out ProcessorSettings>>
+    fun loadProcessors(settings: Map<ProcessorId, ProcessorSettings>): Map<ProcessorId, T>
 }
