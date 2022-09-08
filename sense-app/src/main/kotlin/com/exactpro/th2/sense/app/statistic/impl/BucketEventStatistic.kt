@@ -100,11 +100,20 @@ private class EventBucket {
     fun clean(end: Instant): Map<EventType, SortedMap<Instant, Int>> {
         val transferToAnother = startTimes.asSequence().mapNotNull { (type, times) ->
             when {
+                times.isEmpty() -> null
                 times.firstKey() <= end -> times.headMap(end)
                 else -> null
             }?.takeIf { it.isNotEmpty() }?.let { type to it.toSortedMap() }
         }.toMap()
-        startTimes.replaceAll { _, map -> map.run { if (lastKey() > end) tailMap(end).toSortedMap() else also { it.clear() } } }
+        startTimes.replaceAll { _, map ->
+            map.run {
+                when {
+                    isEmpty() -> this
+                    lastKey() > end -> tailMap(end).toSortedMap()
+                    else -> also { it.clear() }
+                }
+            }
+        }
         return transferToAnother
     }
 

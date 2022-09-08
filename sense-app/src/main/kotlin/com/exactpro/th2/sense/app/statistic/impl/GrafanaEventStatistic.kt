@@ -23,6 +23,7 @@ import com.exactpro.th2.sense.api.EventType
 import com.exactpro.th2.sense.app.statistic.EventBucketStat
 import com.exactpro.th2.sense.app.statistic.EventStatistic
 import io.prometheus.client.Counter
+import io.prometheus.client.Gauge
 
 object GrafanaEventStatistic : EventStatistic {
     override val stats: Map<Duration, List<EventBucketStat>>
@@ -33,12 +34,14 @@ object GrafanaEventStatistic : EventStatistic {
     }
 
     override fun refresh(currentTime: Instant) {
-        // do nothing on refresh
+        CURRENT_TIME.set(currentTime.toEpochMilli().toDouble())
     }
 
     private const val TYPE_LABEL = "type"
     private const val STATUS_LABEL = "status"
     private val EVENTS_COUNTER = Counter.build("th2_sense_event_counter", "counts number of events by usertype and event status")
         .labelNames(STATUS_LABEL, TYPE_LABEL)
+        .register()
+    private val CURRENT_TIME = Gauge.build("th2_sense_current_time_mls", "the current time for processing data")
         .register()
 }

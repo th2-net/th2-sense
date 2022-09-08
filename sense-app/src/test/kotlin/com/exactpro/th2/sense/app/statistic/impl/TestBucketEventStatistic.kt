@@ -29,11 +29,17 @@ import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import strikt.api.expect
+import strikt.api.expectCatching
 import strikt.api.expectThat
+import strikt.assertions.containsExactly
+import strikt.assertions.getValue
 import strikt.assertions.hasEntry
 import strikt.assertions.hasSize
+import strikt.assertions.isEmpty
 import strikt.assertions.isEqualTo
 import strikt.assertions.isNotEmpty
+import strikt.assertions.isSuccess
 
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 internal class TestBucketEventStatistic {
@@ -135,6 +141,32 @@ internal class TestBucketEventStatistic {
             .isNotEmpty()
             .hasSize(StatisticConfiguration.DEFAULT_EVENTS_BUCKETS.size)
             .hasEntry(bucket, emptyList())
+    }
+
+    @ParameterizedTest
+    @MethodSource("buckets")
+    fun `correctly process empty bucket on refresh`(bucket: Duration) {
+        val type = EventType("test")
+        val time = Instant.now()
+
+        val firstEventTime = time - (bucket.minusMillis(1))
+        val event = Event.newBuilder()
+            .setStartTimestamp(firstEventTime.toTimestamp())
+            .build()
+        stat.update(type, event, time)
+        val lastBucket = StatisticConfiguration.DEFAULT_EVENTS_BUCKETS.last()
+
+        val currentTime = time + lastBucket.plusMinutes(1)
+        stat.refresh(currentTime) // clear all buckets
+
+        expect {
+            catching {
+                stat.refresh(currentTime.plusSeconds(60))
+            }.isSuccess()
+            that(stat).get { stats }
+                .isNotEmpty()
+                .getValue(bucket).isEmpty()
+        }
     }
 
     companion object {
