@@ -76,10 +76,7 @@ To use th2-sense you need:
     class YourConfiguration(val param: Int) : ProcessorSettings()
 
     @AutoService(EventProcessorFactory::class)
-    class YourRuleFactory : ConfigurableEventRuleFactory<YourConfiguration>(
-      "rule name",
-      YourConfiguration::class.java,
-    ) {
+    class YourRuleFactory : ConfigurableEventRuleFactory<YourConfiguration>("rule name") {
        override fun EventRuleBuilder.setup(settings: YourConfiguration) {
          // rule setup. The configuration is available
        }

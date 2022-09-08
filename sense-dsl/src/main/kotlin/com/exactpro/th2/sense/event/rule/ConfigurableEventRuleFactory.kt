@@ -21,11 +21,13 @@ import com.exactpro.th2.sense.api.EventProcessorFactory
 import com.exactpro.th2.sense.api.ProcessorId
 import com.exactpro.th2.sense.api.ProcessorSettings
 import com.exactpro.th2.sense.event.dsl.EventRuleBuilder
+import com.exactpro.th2.sense.internal.genericParameter
 
 abstract class ConfigurableEventRuleFactory<S : ProcessorSettings>(
     name: String,
-    override val settings: Class<out S>,
 ) : EventProcessorFactory<S> {
+
+    override val settings: Class<out S> = this::class.genericParameter(0, ConfigurableEventRuleFactory::class)
     init {
         require(name.isNotBlank()) { "rule name cannot be blank" }
     }
