@@ -20,4 +20,6 @@ import java.time.Instant
 
 interface SourceListener<T> {
     fun onData(data: T, sourceTime: Instant)
+
+    fun onTimeRefresh(sourceTime: Instant)
 }

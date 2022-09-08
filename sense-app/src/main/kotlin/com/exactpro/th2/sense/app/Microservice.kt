@@ -80,12 +80,15 @@ class Microservice : App {
         val globalEventsStatistic = BucketEventStatistic(statistic.eventBuckets)
 
         val aggregatedEventStatistic = AggregatedEventStatistic(globalEventsStatistic, listOf(GrafanaEventStatistic))
-        val eventListener = EventProcessorListener(holder) { event, results, time ->
-            aggregatedEventStatistic.refresh(time)
-            results.forEach { result ->
-                aggregatedEventStatistic.update(result.type, event, time)
+        val eventListener = EventProcessorListener(holder,
+            { aggregatedEventStatistic.refresh(it) },
+            { event, results, time ->
+                aggregatedEventStatistic.refresh(time)
+                results.forEach { result ->
+                    aggregatedEventStatistic.update(result.type, event, time)
+                }
             }
-        }
+        )
 
         val eventSource: Source<Event> = createSource(commonFactory, sourceCfg, closeResource)
 

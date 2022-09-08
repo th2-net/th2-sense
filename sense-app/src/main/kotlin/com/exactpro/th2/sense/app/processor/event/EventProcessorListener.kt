@@ -27,6 +27,7 @@ import mu.KotlinLogging
 
 class EventProcessorListener(
     private val processorHolder: ProcessorHolder<EventProcessor>,
+    private val onTimeRefresh: (Instant) -> Unit,
     private val onMatchedEvent: (Event, Collection<EventResult.Accept>, Instant) -> Unit,
 ) : SourceListener<Event> {
     override fun onData(data: Event, sourceTime: Instant) {
@@ -37,6 +38,11 @@ class EventProcessorListener(
         if (matchResult.isEmpty()) return
         LOGGER.info { "Event ${data.eventId.id} is matched by ${matchResult.size} processor(s): ${matchResult.keys}" }
         onMatchedEvent(data, matchResult.values, sourceTime)
+    }
+
+    override fun onTimeRefresh(sourceTime: Instant) {
+        LOGGER.info { "Refreshing time: $sourceTime" }
+        onTimeRefresh.invoke(sourceTime)
     }
 
     companion object {

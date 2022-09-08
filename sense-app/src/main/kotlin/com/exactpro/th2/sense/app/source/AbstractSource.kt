@@ -53,6 +53,14 @@ abstract class AbstractSource<T> : Source<T> {
         }
     }
 
+    protected fun refreshTime(time: Instant) {
+        listeners.forEach { listener ->
+            listener.runCatching { onTimeRefresh(time) }.onFailure {
+                LOGGER.error(it) { "cannot handle time refresh by ${listener::class}" }
+            }
+        }
+    }
+
     companion object {
         private val LOGGER = KotlinLogging.logger { }
     }
