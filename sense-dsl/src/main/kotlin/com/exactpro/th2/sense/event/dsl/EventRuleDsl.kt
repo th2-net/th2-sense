@@ -133,12 +133,17 @@ class EventRuleBuilder {
     /**
      * Creates a constant event type
      */
-    fun eventType(name: String): EventTypeSupplier = dynamicEventType { EventType(name) }
+    fun eventType(name: String): EventTypeSupplier = EventTypeSupplier { EventType(name) }
 
     /**
      * Allows to create an event type based on the matched event data
      */
-    fun dynamicEventType(supplier: EventTypeSupplier): EventTypeSupplier = supplier
+    fun dynamicEventType(supplier: EventTypeBuilder.() -> EventType): EventTypeSupplier = EventTypeSupplier {
+        EventTypeBuilder(this, it).supplier()
+    }
 
-    internal fun build(): EventRule = EventRule(matcherByType)
+    internal fun build(): EventRule {
+        check(matcherByType.isNotEmpty()) { "no matchers were specified" }
+        return EventRule(matcherByType)
+    }
 }

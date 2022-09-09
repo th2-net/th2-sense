@@ -30,7 +30,7 @@ abstract class SimpleEventRuleFactory(name: String) : EventProcessorFactory<Empt
     override val id: ProcessorId = ProcessorId(name)
     override val settings: Class<out EmptyProcessorSettings> = EmptyProcessorSettings::class.java
 
-    override fun create(settings: EmptyProcessorSettings): EventProcessor = EventRule(id) { setup() }
+    override fun create(settings: EmptyProcessorSettings): EventProcessor = EventRuleProcessor(id) { setup() }
 
     protected abstract fun EventRuleBuilder.setup()
 }

@@ -16,25 +16,24 @@
 
 package com.exactpro.th2.sense.event.rule
 
+import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.api.EventProcessor
-import com.exactpro.th2.sense.api.EventProcessorFactory
+import com.exactpro.th2.sense.api.EventResult
+import com.exactpro.th2.sense.api.ProcessorContext
 import com.exactpro.th2.sense.api.ProcessorId
-import com.exactpro.th2.sense.api.ProcessorSettings
+import com.exactpro.th2.sense.event.dsl.EventRule
 import com.exactpro.th2.sense.event.dsl.EventRuleBuilder
-import com.exactpro.th2.sense.internal.genericParameter
 
-abstract class ConfigurableEventRuleFactory<S : ProcessorSettings>(
-    name: String,
-) : EventProcessorFactory<S> {
+/**
+ * It is a base class for rule implementation that is created by [EventRuleBuilder] DSL
+ */
+class EventRuleProcessor(
+    override val id: ProcessorId,
+    setup: EventRuleBuilder.() -> Unit,
+) : EventProcessor {
+    private val rule: EventRule = EventRule.builder().apply { setup() }.build()
 
-    override val settings: Class<out S> = this::class.genericParameter(0, ConfigurableEventRuleFactory::class)
-    init {
-        require(name.isNotBlank()) { "rule name cannot be blank" }
+    override fun ProcessorContext.process(event: Event): EventResult {
+        return rule.handle(this, event)
     }
-
-    override val id: ProcessorId = ProcessorId(name)
-
-    override fun create(settings: S): EventProcessor = EventRuleProcessor(id) { setup(settings) }
-
-    protected abstract fun EventRuleBuilder.setup(settings: S)
 }
