@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package th2.sense;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+option java_multiple_files = true;
+option java_package = "com.exactpro.th2.sense.grpc";
+
+service Sense {
+  rpc NotifyOnEvents(NotificationRequest) returns (google.protobuf.Empty);
+}
+
+message NotificationRequest {
+  string name = 1;
+  google.protobuf.StringValue description = 2;
+  repeated ExpectedEvent expected_events = 3;
+}
+
+message ExpectedEvent {
+  EventType type = 1;
+  uint64 count = 2;
+}
+
+message EventType {
+  string name = 1;
+}

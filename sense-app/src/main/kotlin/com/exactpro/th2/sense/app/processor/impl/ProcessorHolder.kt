@@ -25,6 +25,7 @@ import mu.KotlinLogging
 
 class ProcessorHolder<T : Processor>(
     processorsById: Map<ProcessorId, T>,
+    private val onError: (String, Throwable) -> Unit,
     private val contextSupplier: (ProcessorId) -> ProcessorContext,
 ) {
     private val lock = ReentrantLock()
@@ -37,7 +38,12 @@ class ProcessorHolder<T : Processor>(
             processorHoldersById.asSequence()
                 .mapNotNull { (id, holder) ->
                     LOGGER.trace { "Executing action on processor $id" }
-                    holder.run { processor.action(context) }?.let { id to it }
+                    holder.runCatching { processor.action(context) }
+                        .onFailure {
+                            LOGGER.error(it) { "Failed to execute action on processor $id" }
+                            onError("Cannot process data by processor $id", it)
+                        }
+                        .getOrNull()?.let { id to it }
                 }.toMap()
         }
     }

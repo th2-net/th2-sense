@@ -22,17 +22,13 @@ import com.exactpro.th2.common.message.toTimestamp
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.api.EventType
 import com.exactpro.th2.sense.app.cfg.StatisticConfiguration
-import com.exactpro.th2.sense.app.statistic.EventBucketStat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import strikt.api.expect
-import strikt.api.expectCatching
 import strikt.api.expectThat
-import strikt.assertions.containsExactly
 import strikt.assertions.getValue
 import strikt.assertions.hasEntry
 import strikt.assertions.hasSize

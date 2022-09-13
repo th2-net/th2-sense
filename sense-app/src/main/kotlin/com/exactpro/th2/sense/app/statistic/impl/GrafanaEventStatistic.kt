@@ -16,19 +16,14 @@
 
 package com.exactpro.th2.sense.app.statistic.impl
 
-import java.time.Duration
 import java.time.Instant
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.api.EventType
-import com.exactpro.th2.sense.app.statistic.EventBucketStat
 import com.exactpro.th2.sense.app.statistic.EventStatistic
 import io.prometheus.client.Counter
 import io.prometheus.client.Gauge
 
 object GrafanaEventStatistic : EventStatistic {
-    override val stats: Map<Duration, List<EventBucketStat>>
-        get() = throw UnsupportedOperationException("statistic for grafana does not collect data in memory")
-
     override fun update(type: EventType, event: Event, currentTime: Instant) {
         EVENTS_COUNTER.labels(event.status.name, type.type).inc()
     }

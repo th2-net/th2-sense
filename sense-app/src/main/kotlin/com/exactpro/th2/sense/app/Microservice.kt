@@ -16,7 +16,12 @@
 
 package com.exactpro.th2.sense.app
 
+import com.exactpro.th2.common.event.Event as CommonEvent
+import com.exactpro.th2.common.event.EventUtils
+import com.exactpro.th2.common.grpc.EventBatch
 import com.exactpro.th2.common.schema.factory.AbstractCommonFactory
+import com.exactpro.th2.common.schema.message.MessageRouter
+import com.exactpro.th2.common.schema.message.storeEvent
 import com.exactpro.th2.dataprovider.grpc.DataProviderService
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.api.EventProcessor
@@ -32,6 +37,8 @@ import com.exactpro.th2.sense.app.cfg.MqSourceConfiguration
 import com.exactpro.th2.sense.app.cfg.SenseAppConfiguration
 import com.exactpro.th2.sense.app.cfg.SourceConfiguration
 import com.exactpro.th2.sense.app.cfg.StatisticConfiguration
+import com.exactpro.th2.sense.app.notifier.event.GrafanaEventNotifier
+import com.exactpro.th2.sense.app.notifier.grpc.SenseService
 import com.exactpro.th2.sense.app.processor.event.EventProcessorListener
 import com.exactpro.th2.sense.app.processor.impl.EventProviderImpl
 import com.exactpro.th2.sense.app.processor.impl.MessageProviderImpl
@@ -44,10 +51,12 @@ import com.exactpro.th2.sense.app.source.event.MqEventSource
 import com.exactpro.th2.sense.app.statistic.impl.AggregatedEventStatistic
 import com.exactpro.th2.sense.app.statistic.impl.BucketEventStatistic
 import com.exactpro.th2.sense.app.statistic.impl.GrafanaEventStatistic
+import com.exactpro.th2.sense.app.statistic.impl.NotificationEventStatistic
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.auto.service.AutoService
+import io.grpc.BindableService
 import mu.KotlinLogging
 
 @AutoService(App::class)
@@ -72,14 +81,24 @@ class Microservice : App {
         val eventProvider: EventProvider = EventProviderImpl(dataProvider, eventsCaching)
         val messageProvider: MessageProvider = MessageProviderImpl(dataProvider, messagesCaching)
 
-        val holder = ProcessorHolder(processorProvider.loadProcessors(processors)) {
+        val processorsById = processorProvider.loadProcessors(processors)
+        val eventBatchRouter = commonFactory.eventBatchRouter
+        val rootEventID = createRootEvent(eventBatchRouter, processorsById.keys)
+
+        val onError: (String, Throwable) -> Unit = { name, cause ->
+            eventBatchRouter.storeErrorEvent(name, cause, rootEventID)
+        }
+
+        val holder = ProcessorHolder(processorsById, onError) {
             LOGGER.info { "Creating context for event processor $it" }
             ProcessorContextImpl(eventProvider, messageProvider)
         }
 
         val globalEventsStatistic = BucketEventStatistic(statistic.eventBuckets)
+        val eventNotifier = GrafanaEventNotifier()
 
-        val aggregatedEventStatistic = AggregatedEventStatistic(globalEventsStatistic, listOf(GrafanaEventStatistic))
+        val notificationEventStat = NotificationEventStatistic(listOf(eventNotifier), onError)
+        val aggregatedEventStatistic = AggregatedEventStatistic(listOf(globalEventsStatistic, GrafanaEventStatistic, notificationEventStat), onError)
         val eventListener = EventProcessorListener(holder,
             { aggregatedEventStatistic.refresh(it) },
             { event, results, time ->
@@ -90,7 +109,11 @@ class Microservice : App {
             }
         )
 
-        val eventSource: Source<Event> = createSource(commonFactory, sourceCfg, closeResource)
+        val servers = arrayListOf<BindableService>()
+
+        servers += SenseService(notificationEventStat)
+
+        val eventSource: Source<Event> = createSource(commonFactory, sourceCfg, servers::add)
 
         eventSource.addListener(eventListener)
 //        messageSource.addListener()
@@ -98,8 +121,40 @@ class Microservice : App {
         eventSource.start()
 //        messageSource.start()
 
+        val server = commonFactory.grpcRouter.startServer(*servers.toTypedArray())
+        closeResource("grpc servers", server::shutdown)
+
         closeResource("event source", eventSource::close)
 //        closeResource("message source", messageSource::close)
+    }
+
+    private fun MessageRouter<EventBatch>.storeErrorEvent(
+        name: String,
+        cause: Throwable,
+        rootEventID: String,
+    ) {
+        runCatching {
+            storeEvent(
+                CommonEvent.start().endTimestamp()
+                    .name(name)
+                    .type("SenseError")
+                    .status(CommonEvent.Status.FAILED)
+                    .exception(cause, true),
+                rootEventID,
+            )
+        }.onFailure {
+            LOGGER.error(it) { "Cannot store event: $name" }
+        }
+    }
+
+    private fun createRootEvent(eventBatchRouter: MessageRouter<EventBatch>, processorIds: Set<ProcessorId>): String {
+        return eventBatchRouter.storeEvent(
+            CommonEvent.start().endTimestamp()
+                .name("Sense root event")
+                .type("Microservice")
+                .status(CommonEvent.Status.PASSED)
+                .bodyData(EventUtils.createMessageBean("Registered processors: ${processorIds.joinToString { it.name }}"))
+        ).id
     }
 
     override fun close() {
@@ -108,9 +163,9 @@ class Microservice : App {
     private fun createSource(
         commonFactory: AbstractCommonFactory,
         sourceCfg: SourceConfiguration,
-        closeResource: (name: String, action: () -> Unit) -> Unit,
+        addServer: (BindableService) -> Unit,
     ): Source<Event> = when (sourceCfg) {
-        is CrawlerSourceConfiguration -> setupCrawler(commonFactory, sourceCfg, closeResource)
+        is CrawlerSourceConfiguration -> setupCrawler(sourceCfg, addServer)
         MqSourceConfiguration -> MqEventSource(commonFactory.eventBatchRouter)/* to MqMessageSource(commonFactory.messageRouterMessageGroupBatch)*/
     }
 
@@ -125,19 +180,13 @@ class Microservice : App {
     }
 
     private fun setupCrawler(
-        commonFactory: AbstractCommonFactory,
         sourceCfg: CrawlerSourceConfiguration,
-        closeResource: (name: String, action: () -> Unit) -> Unit,
-    ) : Source<Event> {
+        addServer: (BindableService) -> Unit,
+    ): Source<Event> {
         val sourceCrawler = SourceCrawler(sourceCfg)
-        val server = commonFactory.grpcRouter.startServer(sourceCrawler)
-        closeResource("crawler processor", server::shutdown)
+        addServer(sourceCrawler)
 
-        return object : Source<Event> by sourceCrawler.events {
-            override fun start() {
-                server.start()
-            }
-        }
+        return sourceCrawler.events
     }
 
     companion object {

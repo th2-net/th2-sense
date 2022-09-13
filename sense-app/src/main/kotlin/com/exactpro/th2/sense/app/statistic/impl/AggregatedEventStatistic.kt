@@ -16,22 +16,16 @@
 
 package com.exactpro.th2.sense.app.statistic.impl
 
-import java.time.Duration
 import java.time.Instant
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.api.EventType
-import com.exactpro.th2.sense.app.statistic.EventBucketStat
 import com.exactpro.th2.sense.app.statistic.EventStatistic
 import mu.KotlinLogging
 
 class AggregatedEventStatistic(
-    private val main: EventStatistic,
-    others: Collection<EventStatistic>,
+    private val delegates: Collection<EventStatistic>,
+    private val onError: (String, Throwable) -> Unit,
 ) : EventStatistic {
-    private val all: Collection<EventStatistic> = others + main
-    override val stats: Map<Duration, List<EventBucketStat>>
-        get() = main.stats
-
     override fun update(type: EventType, event: Event, currentTime: Instant) {
         each("update") { update(type, event, currentTime) }
     }
@@ -41,9 +35,12 @@ class AggregatedEventStatistic(
     }
 
     private inline fun each(name: String, block: EventStatistic.() -> Unit) {
-        all.forEach { statistic ->
+        delegates.forEach { statistic ->
             statistic.runCatching(block)
-                .onFailure { LOGGER.error(it) { "Cannot execute action '$name' for statistic ${statistic::class}" } }
+                .onFailure {
+                    LOGGER.error(it) { "Cannot execute action '$name' for statistic ${statistic::class}" }
+                    onError("Cannot execute action '$name' for statistic ${statistic::class.simpleName}", it)
+                }
         }
     }
 

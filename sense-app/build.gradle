@@ -10,11 +10,13 @@ dependencies {
 
     api project(':sense-api')
     api project(':sense-dsl')
+    api project(':grpc-sense')
+
     implementation 'com.google.guava:guava'
     implementation('io.prometheus:simpleclient') {
         because('export stats to grafana')
     }
-    implementation('com.exactpro.th2:grpc-crawler-data-processor:0.3.1-update-rpt-grpc-SNAPSHOT'){
+    implementation('com.exactpro.th2:grpc-crawler-data-processor:0.3.1-update-rpt-grpc-SNAPSHOT') {
         because('crawler source')
     }
     implementation('com.fasterxml.jackson.module:jackson-module-kotlin') {

@@ -24,7 +24,6 @@ import javax.annotation.concurrent.NotThreadSafe
 import com.exactpro.th2.common.util.toInstant
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.api.EventType
-import com.exactpro.th2.sense.app.statistic.EventBucketStat
 import com.exactpro.th2.sense.app.statistic.EventStatistic
 import mu.KotlinLogging
 
@@ -57,7 +56,7 @@ class BucketEventStatistic(
         LOGGER.trace { "Bucket $bucketKey is updated. Current stats: ${bucket.stats}" }
     }
 
-    override val stats: Map<Duration, List<EventBucketStat>>
+    val stats: Map<Duration, List<EventBucketStat>>
         get() = buckets.mapValues { it.value.stats }
 
     override fun refresh(currentTime: Instant) {
@@ -121,3 +120,5 @@ private class EventBucket {
         return stats.toString()
     }
 }
+
+data class EventBucketStat(val type: EventType, val count: Int)

@@ -1,5 +1,5 @@
 plugins {
-    id 'com.exactpro.th2.common-convensions'
+    id 'com.exactpro.th2.artifacts-convensions'
 }
 
 dependencies {

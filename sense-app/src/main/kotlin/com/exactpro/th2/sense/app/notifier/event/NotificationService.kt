@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.sense.app.statistic
+package com.exactpro.th2.sense.app.notifier.event
 
-import java.time.Instant
-import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.api.EventType
 
-interface EventStatistic {
-    fun update(type: EventType, event: Event, currentTime: Instant)
-    fun refresh(currentTime: Instant)
+interface NotificationService {
+    fun submitNotification(notificationRequest: NotificationRequest)
 }
+
+data class NotificationRequest(
+    val name: String,
+    val eventsByType: Map<EventType, Long>,
+    val description: String? = null,
+)

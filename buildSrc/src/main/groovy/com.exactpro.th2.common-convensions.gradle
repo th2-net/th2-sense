@@ -1,6 +1,5 @@
 plugins {
     id 'org.jetbrains.kotlin.jvm'
-    id 'maven-publish'
 }
 
 group 'com.exactpro.th2'
@@ -49,24 +48,5 @@ jar {
                 'Implementation-Vendor-Id': 'com.exactpro',
                 'Implementation-Version': project.version
         )
-    }
-}
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
-        }
-    }
-
-    repositories {
-        maven {
-            name = 'nexus'
-            credentials {
-                username = "${nexus_user}"
-                password = "${nexus_password}"
-            }
-            url = "${nexus_url}"
-        }
     }
 }
