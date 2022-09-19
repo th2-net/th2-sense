@@ -125,6 +125,7 @@ class Microservice : App {
 //        messageSource.start()
 
         val server = commonFactory.grpcRouter.startServer(*servers.toTypedArray())
+        server.start()
         closeResource("grpc servers", server::shutdown)
 
         httpServerCfg?.apply {
