@@ -1,4 +1,4 @@
-FROM gradle:7.4-jdk11 AS build
+FROM gradle:6.9.1-jdk11 AS build
 ARG release_version
 ARG nexus_url
 ARG nexus_user
