@@ -17,6 +17,7 @@
 package com.exactpro.th2.sense.app.processor.impl
 
 import com.exactpro.th2.common.grpc.MessageID
+import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.dataprovider.grpc.DataProviderService
 import com.exactpro.th2.sense.api.Message
 import com.exactpro.th2.sense.api.MessageProvider
@@ -29,11 +30,11 @@ class MessageProviderImpl(
     private val provider: DataProviderService,
     cachingConfiguration: CachingConfiguration,
 ) : MessageProvider {
-    private val messagesCache: Cache<MessageID, List<Message>> = CacheBuilder.newBuilder()
-//        .maximumSize(cachingConfiguration.maxSize)
-        .maximumWeight(cachingConfiguration.maxWeightInBytes)
+    private val messagesCache: Cache<MessageID, List<Message>> = cacheBuilder(cachingConfiguration)
         .weigher { _: MessageID, value: List<Message> ->
             value.sumOf { it.serializedSize }
+        }.removalListener<MessageID, List<Message>> {
+            LOGGER.trace { "Message ${it.key.toJson()} was removed because of ${it.cause}" }
         }
         .build()
 

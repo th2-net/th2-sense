@@ -17,6 +17,7 @@
 package com.exactpro.th2.sense.app.processor.impl
 
 import com.exactpro.th2.common.grpc.EventID
+import com.exactpro.th2.common.message.toJson
 import com.exactpro.th2.dataprovider.grpc.DataProviderService
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.api.EventProvider
@@ -29,10 +30,11 @@ class EventProviderImpl(
     private val provider: DataProviderService,
     cachingConfiguration: CachingConfiguration,
 ) : EventProvider {
-    private val eventsCache: Cache<EventID, Event> = CacheBuilder.newBuilder()
-//        .maximumSize(cachingConfiguration.maxSize)
-        .maximumWeight(cachingConfiguration.maxWeightInBytes)
+    private val eventsCache: Cache<EventID, Event> = cacheBuilder(cachingConfiguration)
         .weigher { _: EventID, value: Event -> value.body.size() }
+        .removalListener<EventID, Event> {
+            LOGGER.trace { "Event ${it.key.toJson()} was evicted from cache because ${it.cause}" }
+        }
         .build()
 
     override fun findEvent(eventID: EventID): Event? {

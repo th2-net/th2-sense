@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.sense.app.cfg
+package com.exactpro.th2.sense.app.processor.impl
 
-import kotlin.math.roundToLong
+import com.exactpro.th2.sense.app.cfg.CachingConfiguration
+import com.google.common.cache.CacheBuilder
 
-/**
- * 10% of max memory or 10Mb
- */
-private val DEFAULT_MAX_WEIGHT: Long =
-    (Runtime.getRuntime().maxMemory() * 0.1).roundToLong().coerceAtLeast(1024 * 1024 * 10)
-
-data class CachingConfiguration(
-    val maxSize: Long? = null,
-    val maxWeightInBytes: Long = DEFAULT_MAX_WEIGHT,
-)
+fun cacheBuilder(cachingConfiguration: CachingConfiguration): CacheBuilder<Any, Any> = CacheBuilder.newBuilder()
+    .apply {
+        with(cachingConfiguration) {
+            if (maxSize != null) {
+                maximumSize(maxSize)
+            } else {
+                maximumWeight(cachingConfiguration.maxWeightInBytes)
+            }
+        }
+    }
