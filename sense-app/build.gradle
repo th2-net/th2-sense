@@ -1,7 +1,5 @@
 plugins {
-    id 'com.exactpro.th2.common-convensions'
-    id 'application'
-    id 'com.palantir.docker' version '0.25.0'
+    id 'com.exactpro.th2.artifacts-convensions'
     id 'org.jetbrains.kotlin.kapt'
 }
 
@@ -31,22 +29,4 @@ dependencies {
 
     compileOnly 'com.google.auto.service:auto-service-annotations:1.0.1'
     kapt 'com.google.auto.service:auto-service:1.0.1'
-}
-
-applicationName = 'service'
-
-distTar {
-    archiveFileName.set("${applicationName}.tar")
-}
-
-dockerPrepare {
-    dependsOn distTar
-}
-
-docker {
-    copySpec.from(tarTree("$buildDir/distributions/${applicationName}.tar"))
-}
-
-application {
-    mainClass.set('com.exactpro.th2.sense.app.bootstrap.Main')
 }
