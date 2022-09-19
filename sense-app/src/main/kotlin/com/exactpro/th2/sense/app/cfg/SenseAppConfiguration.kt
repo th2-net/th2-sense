@@ -30,6 +30,7 @@ data class SenseAppConfiguration(
     val statistic: StatisticConfiguration = StatisticConfiguration(),
     val messagesCaching: CachingConfiguration = CachingConfiguration(),
     val eventsCaching: CachingConfiguration = CachingConfiguration(),
+    val httpConfiguration: HttpServerConfiguration? = null,
 )
 
 private class ListToMapConverter : StdConverter<List<ProcessorSettings>, Map<ProcessorId, ProcessorSettings>>() {

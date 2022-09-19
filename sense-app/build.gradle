@@ -10,9 +10,15 @@ dependencies {
 
     api project(':sense-api')
     api project(':sense-dsl')
-    api project(':grpc-sense')
+    implementation(project(':grpc-sense')) {
+        because('gRPC for notification submittion')
+    }
 
     implementation 'com.google.guava:guava'
+
+    implementation('io.javalin:javalin:4.6.4') {
+        because('http for notification submittion')
+    }
     implementation('io.prometheus:simpleclient') {
         because('export stats to grafana')
     }

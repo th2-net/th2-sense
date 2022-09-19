@@ -208,7 +208,16 @@ processors:
 The buckets in which events and messages should be collected.
 
 **eventBuckets** - the buckets for events. Default value: [PT1S, PT1M, PT1H]
+
 **messagesBuckets** - the buckets for messages. Default value: [PT1S, PT1M, PT1H]
+
+#### httpConfiguration (optional)
+
+If specified the HTTP server will be started to allow notification submission. 
+
+**host** - the address to start listening
+
+**port** - the port to start listening (if _0_ the random free port will be used)
 
 CR example:
 
@@ -232,11 +241,16 @@ spec:
       - id: "processor id"
         param: 1
   pins:
-    - name: server
+    - name: crawler-server
       connection-type: grpc-server
       service-classes:
       - com.exactpro.th2.crawler.dataprocessor.grpc.DataProcessorService
-      - th2.crawler.dataprocessor.DataProcessor
+      - th2.crawler.dataprocessor.DataProcessorService
+    - name: sense-server
+      connection-type: grpc-server
+      service-classes:
+        - com.exactpro.th2.sense.grpc.SenseService
+        - th2.sense.SenseService
     - name: provider
       connection-type: grpc-client
       service-class: com.exactpro.th2.dataprovider.grpc.DataProviderService

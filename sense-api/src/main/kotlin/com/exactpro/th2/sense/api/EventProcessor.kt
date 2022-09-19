@@ -17,6 +17,8 @@
 package com.exactpro.th2.sense.api
 
 import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonValue
 
 typealias Event = EventResponse
 
@@ -32,4 +34,13 @@ sealed class EventResult {
     object Skip : EventResult()
 }
 
-data class EventType(val type: String)
+data class EventType(
+    @get:JsonValue
+    val type: String
+) {
+    companion object {
+        @JsonCreator
+        @JvmStatic
+        fun create(type: String): EventType = EventType(type)
+    }
+}

@@ -33,12 +33,14 @@ import com.exactpro.th2.sense.api.ProcessorSettings
 import com.exactpro.th2.sense.app.bootstrap.App
 import com.exactpro.th2.sense.app.cfg.CachingConfiguration
 import com.exactpro.th2.sense.app.cfg.CrawlerSourceConfiguration
+import com.exactpro.th2.sense.app.cfg.HttpServerConfiguration
 import com.exactpro.th2.sense.app.cfg.MqSourceConfiguration
 import com.exactpro.th2.sense.app.cfg.SenseAppConfiguration
 import com.exactpro.th2.sense.app.cfg.SourceConfiguration
 import com.exactpro.th2.sense.app.cfg.StatisticConfiguration
 import com.exactpro.th2.sense.app.notifier.event.GrafanaEventNotifier
 import com.exactpro.th2.sense.app.notifier.grpc.SenseService
+import com.exactpro.th2.sense.app.notifier.http.SenseHttpServer
 import com.exactpro.th2.sense.app.processor.event.EventProcessorListener
 import com.exactpro.th2.sense.app.processor.impl.EventProviderImpl
 import com.exactpro.th2.sense.app.processor.impl.MessageProviderImpl
@@ -74,6 +76,7 @@ class Microservice : App {
             statistic: StatisticConfiguration,
             messagesCaching: CachingConfiguration,
             eventsCaching: CachingConfiguration,
+            httpServerCfg: HttpServerConfiguration?,
         ) = checkNotNull(commonFactory.getCustomConfiguration(SenseAppConfiguration::class.java, mapper)) {
             "cannot read configuration"
         }
@@ -123,6 +126,11 @@ class Microservice : App {
 
         val server = commonFactory.grpcRouter.startServer(*servers.toTypedArray())
         closeResource("grpc servers", server::shutdown)
+
+        httpServerCfg?.apply {
+            val httpServer = SenseHttpServer(this, notificationEventStat)
+            closeResource("http server", httpServer::close)
+        }
 
         closeResource("event source", eventSource::close)
 //        closeResource("message source", messageSource::close)
