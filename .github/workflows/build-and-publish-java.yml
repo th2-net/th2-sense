@@ -49,7 +49,7 @@ jobs:
         with:
           java-version: '11'
       - id: gradle-tasks
-        run: echo ::set-output name=value::"--info --warning-mode all clean :${{ inputs.project-name }}:build :{{ inputs.project-name }}:publish"
+        run: echo ::set-output name=value::"--info --warning-mode all clean :${{ inputs.project-name }}:build :${{ inputs.project-name }}:publish"
       - name: Build release with Gradle
         if: inputs.release
         run: ./gradlew ${{ steps.gradle-tasks.outputs.value }} closeAndReleaseSonatypeStagingRepository
