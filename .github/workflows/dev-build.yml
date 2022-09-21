@@ -108,6 +108,7 @@ jobs:
             dsl:
               - 'sense-dsl/**'
   build-and-publish-api:
+    name: Build and publish API
     needs:
       - changes
       - versions
@@ -117,6 +118,7 @@ jobs:
       custom-version: ${{ needs.versions.outputs.api }}
     secrets: inherit
   build-and-publish-dsl:
+    name: Build and publish DSL
     needs:
       - changes
       - versions
@@ -126,6 +128,7 @@ jobs:
       custom-version: ${{ needs.versions.outputs.dsl }}
     secrets: inherit
   build-and-publish-java-grpc:
+    name: Build and publish gRPC java
     needs:
       - changes
       - versions
@@ -135,7 +138,7 @@ jobs:
       custom-version: ${{ needs.versions.outputs.grpc-java }}
     secrets: inherit
   build-and-publish-python-grpc:
-    name: Build and publish Python distributions to PyPI
+    name: Build and publish Python gRPC to PyPI
     needs:
       - changes
       - versions

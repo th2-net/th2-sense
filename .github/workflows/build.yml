@@ -34,6 +34,7 @@ jobs:
             dsl:
               - 'sense-dsl/gradle.properties'
   build-and-publish-api:
+    name: Build and publish API release
     if: ${{ needs.changes.outputs.api == 'true' }}
     needs:
       - changes
@@ -43,6 +44,7 @@ jobs:
       release: true
     secrets: inherit
   build-and-publish-dsl:
+    name: Build and publish DSL release
     if: ${{ needs.changes.outputs.dsl == 'true' || needs.changes.outputs.api == 'true' }}
     needs:
       - changes
@@ -52,6 +54,7 @@ jobs:
       release: true
     secrets: inherit
   build-and-publish-java-grpc:
+    name: Build and publish gRPC java release
     if: ${{ needs.changes.outputs.grpc == 'true' }}
     needs:
       - changes
@@ -61,7 +64,7 @@ jobs:
       release: true
     secrets: inherit
   build-and-publish-python-grpc:
-    name: Build and publish Python distributions to PyPI
+    name: Build and publish gRPC Python release to PyPI
     if: ${{ needs.changes.outputs.grpc == 'true' }}
     needs:
       - changes
