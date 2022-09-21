@@ -31,14 +31,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Write custom release version to root file to prevent publishing release
-        if: ${{ inputs.custom-version != "" }}
+        if: ${{ inputs.custom-version != '' }}
         uses: christian-draeger/write-properties@1.0.1
         with:
           path: gradle.properties
           property: release_version
           value: ${{ inputs.custom-version }}
       - name: Write custom release version to file
-        if: ${{ inputs.custom-version != "" }}
+        if: ${{ inputs.custom-version != '' }}
         uses: christian-draeger/write-properties@1.0.1
         with:
           path: ${{ inputs.project-name }}/gradle.properties

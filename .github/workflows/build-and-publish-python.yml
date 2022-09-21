@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set version for current build in package_info.json
-        if: ${{ inputs.custom-version != "" }}
+        if: ${{ inputs.custom-version != '' }}
         uses: MerthinTechnologies/edit-json-action@v1
         with:
           filename: 'grpc-sense/package_info.json'
