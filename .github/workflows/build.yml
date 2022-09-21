@@ -1,0 +1,87 @@
+name: Build and publish read db project
+
+on:
+  push:
+    branches:
+      - master
+      - version-*
+    paths:
+      - grpc-sense/gradle.properties
+      - sense-api/gradle.properties
+      - sense-dsl/gradle.properties
+      - sense-app/gradle.properties
+
+jobs:
+  changes:
+    name: Collect changed files
+    runs-on: ubuntu-20.04
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      api: ${{ steps.filter.outputs.api }}
+      dsl: ${{ steps.filter.outputs.dsl }}
+      grpc: ${{ steps.filter.outputs.grpc }}
+    steps:
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            app:
+              - 'sense-app/gradle.properties'
+            grpc:
+              - 'grpc-sense/gradle.properties'
+            api:
+              - 'sense-api/gradle.properties'
+            dsl:
+              - 'sense-dsl/gradle.properties'
+  build-and-publish-api:
+    if: ${{ needs.changes.outputs.api == 'true' }}
+    needs:
+      - changes
+    uses: ./.github/workflows/build-and-publish-java.yml
+    with:
+      project-name: sense-api
+      release: true
+    secrets: inherit
+  build-and-publish-dsl:
+    if: ${{ needs.changes.outputs.dsl == 'true' || needs.changes.outputs.api == 'true' }}
+    needs:
+      - changes
+    uses: ./.github/workflows/build-and-publish-java.yml
+    with:
+      project-name: sense-dsl
+      release: true
+    secrets: inherit
+  build-and-publish-java-grpc:
+    if: ${{ needs.changes.outputs.grpc == 'true' }}
+    needs:
+      - changes
+    uses: ./.github/workflows/build-and-publish-java.yml
+    with:
+      project-name: grpc-sense
+      release: true
+    secrets: inherit
+  build-and-publish-python-grpc:
+    name: Build and publish Python distributions to PyPI
+    if: ${{ needs.changes.outputs.grpc == 'true' }}
+    needs:
+      - changes
+    uses: ./.github/workflows/build-and-publish-python.yml
+    secrets: inherit
+  build-and-publish-app:
+    name: Build and publish core part for sense app
+    if: |
+      always() &&
+      (needs.changes.outputs.app == 'true' ||
+       needs.changes.outputs.grpc == 'true' ||
+       needs.changes.outputs.dsl == 'true' ||
+       needs.changes.outputs.api == 'true')
+    needs:
+      - build-and-publish-api
+      - build-and-publish-dsl
+      - build-and-publish-java-grpc
+      - build-and-publish-python-grpc
+    uses: ./.github/workflows/build-and-publish-java.yml
+    with:
+      project-name: sense-app
+      release: true
+    secrets: inherit
