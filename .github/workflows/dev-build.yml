@@ -25,55 +25,55 @@ jobs:
       # Prepare custom build version
       - name: Get branch name
         id: branch
-        run: echo ::set-output name=branch_name::${GITHUB_REF#refs/*/}
+        run: echo branch_name=${GITHUB_REF#refs/*/} >> $GITHUB_OUTPUT
       - name: Get grpc release_version
         id: grpc_ver
-        uses: christian-draeger/read-properties@1.0.1
+        uses: christian-draeger/read-properties@1.1.1
         with:
           path: grpc-sense/gradle.properties
-          property: release_version
+          properties: release_version
       - name: Get api release_version
         id: api_ver
-        uses: christian-draeger/read-properties@1.0.1
+        uses: christian-draeger/read-properties@1.1.1
         with:
           path: sense-api/gradle.properties
-          property: release_version
+          properties: release_version
       - name: Get dsl release_version
         id: dsl_ver
-        uses: christian-draeger/read-properties@1.0.1
+        uses: christian-draeger/read-properties@1.1.1
         with:
           path: sense-dsl/gradle.properties
-          property: release_version
+          properties: release_version
       - name: Get app release_version
         id: app_ver
-        uses: christian-draeger/read-properties@1.0.1
+        uses: christian-draeger/read-properties@1.1.1
         with:
           path: sense-app/gradle.properties
-          property: release_version
+          properties: release_version
       - name: Get root release_version
         id: root_ver
-        uses: christian-draeger/read-properties@1.0.1
+        uses: christian-draeger/read-properties@1.1.1
         with:
           path: gradle.properties
-          property: release_version
+          properties: release_version
       - name: Build custom release version
         id: app_release_ver
-        run: echo ::set-output name=value::"${{ steps.app_ver.outputs.value }}-${{ steps.branch.outputs.branch_name }}-SNAPSHOT"
+        run: echo value="${{ steps.app_ver.outputs.release_version }}-${{ steps.branch.outputs.branch_name }}-SNAPSHOT" >> $GITHUB_OUTPUT
       - name: Build custom api release version for java
         id: java_api_ver
-        run: echo ::set-output name=value::"${{ steps.api_ver.outputs.value }}-${{ steps.branch.outputs.branch_name }}-SNAPSHOT"
+        run: echo value="${{ steps.api_ver.outputs.release_version }}-${{ steps.branch.outputs.branch_name }}-SNAPSHOT" >> $GITHUB_OUTPUT
       - name: Build custom api release version for java
         id: java_dsl_ver
-        run: echo ::set-output name=value::"${{ steps.dsl_ver.outputs.value }}-${{ steps.branch.outputs.branch_name }}-SNAPSHOT"
+        run: echo value="${{ steps.dsl_ver.outputs.release_version }}-${{ steps.branch.outputs.branch_name }}-SNAPSHOT" >> $GITHUB_OUTPUT
       - name: Build custom grpc release version for java
         id: java_grpc_ver
-        run: echo ::set-output name=value::"${{ steps.grpc_ver.outputs.value }}-${{ steps.branch.outputs.branch_name }}-SNAPSHOT"
+        run: echo value="${{ steps.grpc_ver.outputs.release_version }}-${{ steps.branch.outputs.branch_name }}-SNAPSHOT" >> $GITHUB_OUTPUT
       - name: Build custom root release version
         id: root_release
-        run: echo ::set-output name=value::"${{ steps.root_ver.outputs.value }}-${{ steps.branch.outputs.branch_name }}-SNAPSHOT"
+        run: echo value="${{ steps.root_ver.outputs.release_version }}-${{ steps.branch.outputs.branch_name }}-SNAPSHOT" >> $GITHUB_OUTPUT
       - name: Build custom grpc package version
         id: python_grpc_ver
-        run: echo ::set-output name=value::"${{ steps.grpc_ver.outputs.value }}.dev${{ github.run_id }}"
+        run: echo value="${{ steps.grpc_ver.outputs.release_version }}.dev${{ github.run_id }}" >> $GITHUB_OUTPUT
       - name: Show app release version
         run: echo ${{ steps.app_release_ver.outputs.value }}
       - name: Write custom release version to root file to prevent publishing release
