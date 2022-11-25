@@ -14,19 +14,16 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.sense.app.notifier.event
+package com.exactpro.th2.sense.app.cfg
 
-import com.exactpro.th2.sense.api.EventType
+import java.time.Duration
 
-interface NotificationService {
-    fun submitNotification(notificationRequest: NotificationRequest)
-    fun removeNotification(name: NotificationName)
+class GrpcSenseConfiguration(
+    val defaultAwaitTimeout: Duration = Duration.ofMinutes(10),
+) {
+    init {
+        require(defaultAwaitTimeout.run { !isZero && !isNegative }) {
+            "defaultAwaitTimeout $defaultAwaitTimeout must have positive value"
+        }
+    }
 }
-
-typealias NotificationName = String
-data class NotificationRequest(
-    val name: NotificationName,
-    val eventsByType: Map<EventType, Long>,
-    val description: String? = null,
-    val callback: () -> Unit = {},
-)

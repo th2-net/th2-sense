@@ -28,6 +28,7 @@ import com.nhaarman.mockitokotlin2.eq
 import com.nhaarman.mockitokotlin2.inOrder
 import com.nhaarman.mockitokotlin2.mock
 import com.nhaarman.mockitokotlin2.verifyZeroInteractions
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import strikt.api.expectThat
@@ -116,5 +117,19 @@ internal class TestNotificationEventStatistic {
                 )
             )
         )
+    }
+
+    @Test
+    fun `removes notification`() {
+        val eventType = EventType("test")
+        notificationStat.submitNotification(
+            NotificationRequest(
+                "another",
+                mapOf(
+                    eventType to Long.MAX_VALUE
+                )
+            )
+        )
+        notificationStat.removeNotification("another")
     }
 }

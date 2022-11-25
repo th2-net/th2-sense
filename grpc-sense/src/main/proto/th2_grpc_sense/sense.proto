@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package th2.sense;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/wrappers.proto";
 
@@ -10,6 +11,12 @@ option java_package = "com.exactpro.th2.sense.grpc";
 
 service Sense {
   rpc NotifyOnEvents(NotificationRequest) returns (google.protobuf.Empty);
+  rpc AwaitNotificationOnEvents(AwaitNotificationRequest) returns (google.protobuf.Empty);
+}
+
+message AwaitNotificationRequest {
+  google.protobuf.Duration timeout = 1;
+  NotificationRequest request = 2;
 }
 
 message NotificationRequest {

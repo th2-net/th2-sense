@@ -26,6 +26,7 @@ import com.exactpro.th2.sense.api.EventNotifier
 import com.exactpro.th2.sense.api.EventType
 import com.exactpro.th2.sense.api.Notification
 import com.exactpro.th2.sense.api.NotificationInfo
+import com.exactpro.th2.sense.app.notifier.event.NotificationName
 import com.exactpro.th2.sense.app.notifier.event.NotificationRequest
 import com.exactpro.th2.sense.app.notifier.event.NotificationService
 import com.exactpro.th2.sense.app.statistic.EventStatistic
@@ -45,6 +46,9 @@ class NotificationEventStatistic(
     private val counters: MutableMap<EventType, Long> = hashMapOf()
 
     @GuardedBy("lock")
+    private val expectationByName: MutableMap<ExpectationName, ExpectationHolder> = hashMapOf()
+
+    @GuardedBy("lock")
     private val expectationsByType: Multimap<EventType, ExpectationHolder> = HashMultimap.create()
 
     @GuardedBy("lock")
@@ -58,14 +62,31 @@ class NotificationEventStatistic(
                 counters.getOrDefault(type, 0) + count
             }
         }
-        val holder = ExpectationHolder(notificationRequest.name, actualExpectedCounts, notificationRequest.eventsByType, notificationRequest.description)
+        val holder = ExpectationHolder(
+            notificationRequest.name,
+            actualExpectedCounts,
+            notificationRequest.eventsByType,
+            notificationRequest.description,
+            notificationRequest.callback,
+        )
         lock.write {
             check(holder.name !in expectationToTypes.keys()) { "duplicated expectation '${holder.name}'" }
+            expectationByName[holder.name] = holder
             expectationToTypes.putAll(holder.name, actualExpectedCounts.keys)
             actualExpectedCounts.keys.forEach {
                 expectationsByType.put(it, holder)
             }
             registered(holder)
+        }
+    }
+
+    override fun removeNotification(name: NotificationName) {
+        lock.write {
+            val holder = expectationByName.remove(name) ?: error("unknown notification name $name")
+            val eventTypes: Collection<EventType> = expectationToTypes.removeAll(name)
+            eventTypes.forEach {
+                expectationsByType.remove(it, holder)
+            }
         }
     }
 
@@ -113,6 +134,12 @@ class NotificationEventStatistic(
             expectation.relativeExpectedByType,
             expectation.description,
         )
+        runCatching {
+            LOGGER.info { "Executing notification ${expectation.name} callback" }
+            expectation.callback()
+        }.onFailure {
+            LOGGER.error(it) { "Cannot execute notification callback for ${expectation.name}" }
+        }
         LOGGER.info { "Received notification for $expectation" }
         eachListener("notification") { notify(notification) }
     }
@@ -133,6 +160,7 @@ class NotificationEventStatistic(
         private val expectedByType: Map<EventType, Long>,
         val relativeExpectedByType: Map<EventType, Long>,
         val description: String? = null,
+        val callback: () -> Unit = {},
     ) {
         private val achieved: MutableSet<EventType> = hashSetOf()
 

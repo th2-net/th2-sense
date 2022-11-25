@@ -33,6 +33,7 @@ import com.exactpro.th2.sense.api.ProcessorSettings
 import com.exactpro.th2.sense.app.bootstrap.App
 import com.exactpro.th2.sense.app.cfg.CachingConfiguration
 import com.exactpro.th2.sense.app.cfg.CrawlerSourceConfiguration
+import com.exactpro.th2.sense.app.cfg.GrpcSenseConfiguration
 import com.exactpro.th2.sense.app.cfg.HttpServerConfiguration
 import com.exactpro.th2.sense.app.cfg.MqSourceConfiguration
 import com.exactpro.th2.sense.app.cfg.SenseAppConfiguration
@@ -77,6 +78,7 @@ class Microservice : App {
             messagesCaching: CachingConfiguration,
             eventsCaching: CachingConfiguration,
             httpServerCfg: HttpServerConfiguration?,
+            grpcConfiguration: GrpcSenseConfiguration,
         ) = checkNotNull(commonFactory.getCustomConfiguration(SenseAppConfiguration::class.java, mapper)) {
             "cannot read configuration"
         }
@@ -114,7 +116,9 @@ class Microservice : App {
 
         val servers = arrayListOf<BindableService>()
 
-        servers += SenseService(notificationEventStat)
+        val senseService = SenseService(grpcConfiguration, notificationEventStat)
+        closeResource("grpc sense service", senseService::close)
+        servers += senseService
 
         val eventSource: Source<Event> = createSource(commonFactory, sourceCfg, servers::add)
 
