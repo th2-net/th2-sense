@@ -19,6 +19,8 @@ package com.exactpro.th2.sense.event.dsl
 import java.time.Instant
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.sense.api.Event
+import com.exactpro.th2.sense.event.content.EventContent
+import com.exactpro.th2.sense.event.content.EventContent.*
 import com.exactpro.th2.sense.event.dsl.util.createEvent
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -308,6 +310,45 @@ internal class TestEventRuleBuilderPositive : AbstractRuleBuilderTest() {
             val parent = createEvent(name = "B", type = "C")
             val event = createEvent(parentEventID = parent.eventId)
             event.setupParent(parent)
+
+            rule.assertAcceptEvent(event) asType type("test")
+        }
+    }
+
+    @Nested
+    inner class EventContent {
+        @Test
+        fun `filters content`() {
+            val event = createEvent(body = """
+                [
+                    {
+                      "type": "table",
+                      "rows" : [
+                        {
+                          "Column": "Value"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "message",
+                      "data": "Test"
+                    }
+                ]
+            """.trimIndent())
+            val rule = rule {
+                eventType("test") whenever allOf {
+                    body allOf {
+                        first().isTable()
+                            .get(Table::rows)
+                            .first()
+                            .get { get("Column") }
+                            .isNotNull() equal "Value"
+
+                        last().isMessage()
+                            .get(Message::data) equal "Test"
+                    }
+                }
+            }
 
             rule.assertAcceptEvent(event) asType type("test")
         }

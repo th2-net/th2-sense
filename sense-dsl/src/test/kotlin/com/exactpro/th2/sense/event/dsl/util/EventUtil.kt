@@ -21,6 +21,7 @@ import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.sense.api.Event
 import com.google.protobuf.Timestamp
+import com.google.protobuf.UnsafeByteOperations
 
 fun createEvent(
     name: String = "Default Name",
@@ -28,7 +29,8 @@ fun createEvent(
     startTime: Instant = Instant.now(),
     endTime: Instant = startTime.plusSeconds(1),
     status: EventStatus = EventStatus.SUCCESS,
-    parentEventID: EventID? = null
+    parentEventID: EventID? = null,
+    body: String = "[]",
 ): Event = Event.newBuilder()
     .setEventId(EventID.newBuilder().setId("${System.nanoTime()}").build())
     .setStatus(status)
@@ -39,6 +41,7 @@ fun createEvent(
     .apply {
         parentEventID?.also { parentEventId = it }
     }
+    .setBody(UnsafeByteOperations.unsafeWrap(body.toByteArray(Charsets.UTF_8)))
     .build()
 
 private fun Instant.toTimestamp(): Timestamp = Timestamp.newBuilder()

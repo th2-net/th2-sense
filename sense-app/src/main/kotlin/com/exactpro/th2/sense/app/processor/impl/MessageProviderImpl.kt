@@ -34,7 +34,7 @@ class MessageProviderImpl(
         .weigher { _: MessageID, value: List<Message> ->
             value.sumOf { it.serializedSize }
         }.removalListener<MessageID, List<Message>> {
-            LOGGER.trace { "Message ${it.key.toJson()} was removed because of ${it.cause}" }
+            LOGGER.trace { "Message ${it.key?.toJson()} was removed because of ${it.cause}" }
         }
         .build()
 

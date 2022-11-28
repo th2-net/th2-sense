@@ -36,12 +36,14 @@ fun interface EventTypeSupplier {
 }
 
 @RuleDsl
-object SimpleMatchContext
+class SimpleMatchContext(
+    val context: ProcessorContext,
+)
 
 typealias SimpleMatchFunction<T> = SimpleMatchContext.(value: T) -> Boolean
 
 @RuleDsl
-interface SimpleMatcher<T : Any> {
+interface SimpleMatcher<T> {
     fun register(name: String, match: SimpleMatchFunction<T>)
 }
 

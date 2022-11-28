@@ -18,6 +18,7 @@ package com.exactpro.th2.sense.event.dsl.impl
 
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.api.ProcessorContext
+import com.exactpro.th2.sense.event.content.EventContent
 import com.exactpro.th2.sense.event.dsl.EventTypeMather
 import com.exactpro.th2.sense.event.dsl.SimpleMatchContext
 import com.exactpro.th2.sense.event.dsl.SimpleMatchFunction
@@ -41,15 +42,45 @@ internal class SimpleMatcherImpl<T : Any>(
     override fun register(name: String, match: SimpleMatchFunction<T>) {
         addMatcher(object : EventTypeMather {
             override fun match(context: ProcessorContext, event: Event): Boolean {
-                return match.matchAndLog(name, event.extractor())
+                return match.matchAndLog(name, event.extractor(), context)
             }
         })
     }
 }
 
-internal fun <T : Any> SimpleMatchFunction<T>.matchAndLog(name: String, value: T): Boolean {
+internal class FilterSimpleMatcher<IN : EventContent, OUT : EventContent>(
+    private val filterName: String,
+    private val parent: SimpleMatcher<List<IN>>,
+    private val filter: (List<IN>) -> List<OUT>,
+) : SimpleMatcher<List<OUT>> {
+    override fun register(name: String, match: SimpleMatchFunction<List<OUT>>) {
+        parent.register("filter '$filterName'") { input ->
+            match.matchAndLog(name, this@FilterSimpleMatcher.filter(input), this)
+        }
+    }
+}
+
+internal class InstanceSimpleMatcher<OUT>(
+    private val parent: SimpleMatcher<out Any>,
+    private val expectedClass: Class<out OUT>,
+) : SimpleMatcher<OUT> {
+    override fun register(name: String, match: SimpleMatchFunction<OUT>) {
+        parent.register("is instance of ${expectedClass.simpleName}") { input ->
+            if (this@InstanceSimpleMatcher.expectedClass.isInstance(input)) {
+                match.matchAndLog(name, this@InstanceSimpleMatcher.expectedClass.cast(input), this)
+            } else {
+                false
+            }
+        }
+    }
+}
+
+internal fun <T> SimpleMatchFunction<T>.matchAndLog(name: String, value: T, context: ProcessorContext): Boolean =
+    matchAndLog(name, value, SimpleMatchContext(context))
+
+internal fun <T> SimpleMatchFunction<T>.matchAndLog(name: String, value: T, context: SimpleMatchContext): Boolean {
     LOGGER.trace { "Checking value '$value' by simple matcher '$name'" }
-    return invoke(SimpleMatchContext, value).also {
+    return invoke(context, value).also {
         LOGGER.trace { "Simple matcher '$name' ${if (it) "accepts" else "does not accept"} value $value" }
     }
 }

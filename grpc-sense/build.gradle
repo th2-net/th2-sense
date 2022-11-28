@@ -1,6 +1,8 @@
+import static org.gradle.api.file.DuplicatesStrategy.INCLUDE
+
 plugins {
     id 'com.exactpro.th2.artifacts-convensions'
-    id "com.google.protobuf" version "0.8.15"
+    id "com.google.protobuf" version "0.9.1"
 }
 
 ext {
@@ -64,6 +66,15 @@ protobuf {
 }
 
 compileJava.dependsOn.add('generateProto')
+
+tasks.getByName("processResources") {
+    dependsOn('generateProto')
+    duplicatesStrategy = INCLUDE
+}
+tasks.getByName("sourcesJar") {
+    dependsOn('generateProto')
+    duplicatesStrategy = INCLUDE
+}
 
 clean {
     delete genDir

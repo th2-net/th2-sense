@@ -20,17 +20,15 @@ import java.time.Instant
 import kotlin.properties.ReadOnlyProperty
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.sense.api.Event
-import com.exactpro.th2.sense.api.ProcessorContext
-import com.exactpro.th2.sense.event.dsl.impl.AllEventTypeMatcher
-import com.exactpro.th2.sense.event.dsl.impl.AnyEventTypeMatcher
-import com.exactpro.th2.sense.event.dsl.impl.EventMatcherBuilderImpl
+import com.exactpro.th2.sense.event.content.EventContent
 import com.exactpro.th2.sense.event.dsl.impl.HasRelatedEventMatcher
-import com.exactpro.th2.sense.event.dsl.impl.NoneEventTypeMatcher
 import com.exactpro.th2.sense.event.dsl.impl.RelatedEventMatcherBuilderImpl
 import com.exactpro.th2.sense.event.dsl.impl.SimpleMatcherDelegate
 import com.exactpro.th2.sense.event.dsl.impl.matchAllOfInternal
 import com.exactpro.th2.sense.event.dsl.impl.matchAnyOfInternal
 import com.exactpro.th2.sense.event.dsl.impl.matchNoneOfInternal
+import com.fasterxml.jackson.databind.ObjectReader
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.protobuf.Timestamp
 
 val AllOfEventMatcherBuilder.name: SimpleMatcher<String> by matcher { eventName }
@@ -38,6 +36,7 @@ val AllOfEventMatcherBuilder.type: SimpleMatcher<String> by matcher { eventType 
 val AllOfEventMatcherBuilder.startTimestamp: SimpleMatcher<Instant> by matcher { startTimestamp.toInstant() }
 val AllOfEventMatcherBuilder.endTimestamp: SimpleMatcher<Instant> by matcher { endTimestamp.toInstant() }
 val AllOfEventMatcherBuilder.status: SimpleMatcher<EventStatus> by matcher { status }
+val AllOfEventMatcherBuilder.body: SimpleMatcher<List<EventContent>> by matcher { EVENT_CONTENT_READER.readValue(body.toStringUtf8()) }
 
 infix fun RelatedEventMatcherBuilder.allOf(block: AllOfEventMatcherBuilder.() -> Unit) {
     register(matchAllOfInternal(block))
@@ -96,3 +95,5 @@ private fun <T : Any> matcher(extractor: Event.() -> T): ReadOnlyProperty<AllOfE
 
 
 private fun Timestamp.toInstant(): Instant = Instant.ofEpochSecond(seconds, nanos.toLong())
+
+private val EVENT_CONTENT_READER: ObjectReader = jacksonObjectMapper().readerForListOf(EventContent::class.java)

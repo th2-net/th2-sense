@@ -4,4 +4,5 @@ plugins {
 
 dependencies {
     api project(':sense-api')
+    implementation('com.fasterxml.jackson.module:jackson-module-kotlin')
 }

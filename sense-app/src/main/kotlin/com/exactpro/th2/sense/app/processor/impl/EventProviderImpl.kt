@@ -33,7 +33,7 @@ class EventProviderImpl(
     private val eventsCache: Cache<EventID, Event> = cacheBuilder(cachingConfiguration)
         .weigher { _: EventID, value: Event -> value.body.size() }
         .removalListener<EventID, Event> {
-            LOGGER.trace { "Event ${it.key.toJson()} was evicted from cache because ${it.cause}" }
+            LOGGER.trace { "Event ${it.key?.toJson()} was evicted from cache because ${it.cause}" }
         }
         .build()
 
