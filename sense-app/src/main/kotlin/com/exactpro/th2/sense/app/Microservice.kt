@@ -47,6 +47,7 @@ import com.exactpro.th2.sense.app.processor.impl.EventProviderImpl
 import com.exactpro.th2.sense.app.processor.impl.MessageProviderImpl
 import com.exactpro.th2.sense.app.processor.impl.ProcessorContextImpl
 import com.exactpro.th2.sense.app.processor.impl.ProcessorHolder
+import com.exactpro.th2.sense.app.processor.impl.ProcessorRegistrarImpl
 import com.exactpro.th2.sense.app.processor.impl.ServiceLoaderProcessorProvider
 import com.exactpro.th2.sense.app.source.Source
 import com.exactpro.th2.sense.app.source.crawler.SourceCrawler
@@ -116,7 +117,9 @@ class Microservice : App {
 
         val servers = arrayListOf<BindableService>()
 
-        val senseService = SenseService(grpcConfiguration, notificationEventStat)
+        val registrar = ProcessorRegistrarImpl(processorProvider, holder, mapper)
+
+        val senseService = SenseService(grpcConfiguration, notificationEventStat, registrar)
         closeResource("grpc sense service", senseService::close)
         servers += senseService
 

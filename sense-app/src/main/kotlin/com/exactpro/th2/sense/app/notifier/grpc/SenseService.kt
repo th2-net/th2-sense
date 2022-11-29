@@ -17,6 +17,8 @@
 package com.exactpro.th2.sense.app.notifier.grpc
 
 import com.exactpro.th2.sense.grpc.NotificationRequest as GrpcNotificationRequest
+import com.exactpro.th2.sense.grpc.ProcessorId as GrpcProcessorId
+import com.exactpro.th2.sense.grpc.ProcessorKey as GrpcProcessorKey
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -24,14 +26,21 @@ import java.util.concurrent.TimeoutException
 import java.util.stream.Collectors
 import com.exactpro.th2.common.message.toJavaDuration
 import com.exactpro.th2.common.message.toJson
+import com.exactpro.th2.sense.api.EventProcessor
 import com.exactpro.th2.sense.api.EventType
+import com.exactpro.th2.sense.api.ProcessorId
 import com.exactpro.th2.sense.app.cfg.GrpcSenseConfiguration
 import com.exactpro.th2.sense.app.notifier.event.NotificationRequest
 import com.exactpro.th2.sense.app.notifier.event.NotificationService
+import com.exactpro.th2.sense.app.processor.ProcessorKey
+import com.exactpro.th2.sense.app.processor.ProcessorProvider
+import com.exactpro.th2.sense.app.processor.ProcessorRegistrar
 import com.exactpro.th2.sense.grpc.AwaitNotificationRequest
 import com.exactpro.th2.sense.grpc.ExpectedEvent
+import com.exactpro.th2.sense.grpc.RegistrationRequest
 import com.exactpro.th2.sense.grpc.SenseGrpc.SenseImplBase
 import com.google.protobuf.Empty
+import com.google.protobuf.MessageOrBuilder
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import mu.KotlinLogging
@@ -39,6 +48,7 @@ import mu.KotlinLogging
 class SenseService(
     private val configuration: GrpcSenseConfiguration,
     private val notificationService: NotificationService,
+    private val registrar: ProcessorRegistrar,
 ) : SenseImplBase(), AutoCloseable {
     private val executor = Executors.newSingleThreadScheduledExecutor()
     override fun notifyOnEvents(request: GrpcNotificationRequest, responseObserver: StreamObserver<Empty>) {
@@ -47,6 +57,7 @@ class SenseService(
             notificationService.submitNotification(request.toInternalRequest())
             responseObserver.onNext(Empty.getDefaultInstance())
             responseObserver.onCompleted()
+            LOGGER.info { "Request $request completed" }
         } catch (ex: Exception) {
             responseObserver.onError(
                 ex.toStatus(request).asRuntimeException()
@@ -71,6 +82,7 @@ class SenseService(
                 } else {
                     responseObserver.onNext(Empty.getDefaultInstance())
                     responseObserver.onCompleted()
+                    LOGGER.info { "Request $request completed" }
                 }
             }
             notificationService.submitNotification(notificationRequest)
@@ -89,6 +101,33 @@ class SenseService(
         }
     }
 
+    override fun registerProcessor(request: RegistrationRequest, responseObserver: StreamObserver<GrpcProcessorKey>) {
+        LOGGER.info { "Registration request $request" }
+        try {
+            require(request.hasId()) { "request does not have processor id" }
+            val settingsData = if (request.hasParameters()) request.parameters.toJson() else null
+            val key = registrar.register(request.id.toInternalId(), settingsData)
+            responseObserver.onNext(key.toGrpc())
+            responseObserver.onCompleted()
+            LOGGER.info { "Request $request completed" }
+        } catch (ex: Exception) {
+            responseObserver.onError(ex.toStatus(request).asRuntimeException())
+        }
+    }
+
+    override fun unregisterProcessor(request: GrpcProcessorKey, responseObserver: StreamObserver<Empty>) {
+        LOGGER.info { "Unregistration request $request" }
+        try {
+            val key = request.toInternalKey()
+            registrar.unregister(key)
+            responseObserver.onNext(Empty.getDefaultInstance())
+            responseObserver.onCompleted()
+            LOGGER.info { "Request $request completed" }
+        } catch (ex: Exception) {
+            responseObserver.onError(ex.toStatus(request).asRuntimeException())
+        }
+    }
+
     override fun close() {
         LOGGER.info { "Closing executor" }
         executor.shutdown()
@@ -99,7 +138,7 @@ class SenseService(
         }
     }
 
-    private fun Throwable.toStatus(request: GrpcNotificationRequest): Status = when (this) {
+    private fun Throwable.toStatus(request: MessageOrBuilder): Status = when (this) {
         is IllegalArgumentException -> {
             LOGGER.error(this) { "Incorrect parameters in the request ${request.toJson()}" }
             Status.INVALID_ARGUMENT
@@ -109,7 +148,7 @@ class SenseService(
             Status.INTERNAL
         }
         is TimeoutException -> {
-            LOGGER.error(this) { "Notification $request was not invoked within the specified timeout" }
+            LOGGER.error(this) { "Request $request was not invoked within the specified timeout" }
             Status.ABORTED
         }
         else -> {
@@ -138,3 +177,19 @@ private fun GrpcNotificationRequest.toInternalRequest(onCompleted: () -> Unit = 
 private fun ExpectedEvent.toEventType(): EventType = EventType(type.name)
 private val ExpectedEvent.expectedCount: Long
     get() = count.apply { require(count > 0) { "negative count for ${type.name} event type" } }
+
+private fun GrpcProcessorId.toInternalId(): ProcessorId {
+    return ProcessorId.create(name)
+}
+
+private fun ProcessorId.toGrpc(): GrpcProcessorId = GrpcProcessorId.newBuilder().setName(name).build()
+
+private fun GrpcProcessorKey.toInternalKey(): ProcessorKey {
+    require(hasId()) { "processor key ${this.toJson()} does not have id" }
+    return ProcessorKey(id.toInternalId(), innerId)
+}
+
+private fun ProcessorKey.toGrpc(): GrpcProcessorKey = GrpcProcessorKey.newBuilder()
+    .setId(id.toGrpc())
+    .setInnerId(innerId)
+    .build()

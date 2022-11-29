@@ -16,11 +16,13 @@
 
 package com.exactpro.th2.sense.app.processor.impl
 
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import com.exactpro.th2.sense.api.Processor
 import com.exactpro.th2.sense.api.ProcessorContext
 import com.exactpro.th2.sense.api.ProcessorId
+import com.exactpro.th2.sense.app.processor.ProcessorKey
 import mu.KotlinLogging
 
 class ProcessorHolder<T : Processor>(
@@ -28,12 +30,15 @@ class ProcessorHolder<T : Processor>(
     private val onError: (String, Throwable) -> Unit,
     private val contextSupplier: (ProcessorId) -> ProcessorContext,
 ) {
+    private val innerIdCounter = AtomicInteger(1)
     private val lock = ReentrantLock()
-    private val processorHoldersById: Map<ProcessorId, Holder<T>> = processorsById.mapValues { (id, processor) ->
-        Holder(processor) { contextSupplier(id) }
+    private val processorHoldersById: MutableMap<ProcessorKey, Holder<T>> = processorsById.asSequence().associateTo(hashMapOf()) { (id, processor) ->
+        val processorKey = id.toKey()
+        LOGGER.info { "processor $id registered under the key $processorKey" }
+        processorKey to Holder(processor) { contextSupplier(id) }
     }
 
-    fun <V> mapEach(action: T.(ProcessorContext) -> V?): Map<ProcessorId, V> {
+    fun <V> mapEach(action: T.(ProcessorContext) -> V?): Map<ProcessorKey, V> {
         return lock.withLock {
             processorHoldersById.asSequence()
                 .mapNotNull { (id, holder) ->
@@ -48,8 +53,30 @@ class ProcessorHolder<T : Processor>(
         }
     }
 
+    fun addProcessor(id: ProcessorId, processor: T): ProcessorKey {
+        return lock.withLock {
+            val key = id.toKey()
+            processorHoldersById[key] = Holder(processor, isRegisteredByUser = true) { contextSupplier(id) }
+            key
+        }.also {
+            LOGGER.info { "Processor ${processor::class.java.simpleName} registered with key $it" }
+        }
+    }
+
+    fun removeProcessor(key: ProcessorKey) {
+        lock.withLock {
+            val holder = processorHoldersById[key]
+            checkNotNull(holder) { "cannot find processor with key $key" }
+            check(holder.isRegisteredByUser) { "processor with key $key is registered on startup and cannot be removed" }
+            processorHoldersById.remove(key)
+        }
+    }
+
+    private fun ProcessorId.toKey() = ProcessorKey(this, innerIdCounter.getAndIncrement())
+
     private class Holder<T : Processor>(
         val processor: T,
+        val isRegisteredByUser: Boolean = false,
         contextSupplier: () -> ProcessorContext,
     ) {
         val context: ProcessorContext by lazy(contextSupplier)

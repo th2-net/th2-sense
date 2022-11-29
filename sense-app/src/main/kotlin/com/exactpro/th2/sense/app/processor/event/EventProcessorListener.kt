@@ -20,7 +20,7 @@ import java.time.Instant
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.api.EventProcessor
 import com.exactpro.th2.sense.api.EventResult
-import com.exactpro.th2.sense.api.ProcessorId
+import com.exactpro.th2.sense.app.processor.ProcessorKey
 import com.exactpro.th2.sense.app.processor.impl.ProcessorHolder
 import com.exactpro.th2.sense.app.source.SourceListener
 import mu.KotlinLogging
@@ -32,7 +32,7 @@ class EventProcessorListener(
 ) : SourceListener<Event> {
     override fun onData(data: Event, sourceTime: Instant) {
         LOGGER.trace { "Processing event ${data.eventId.id}" }
-        val matchResult: Map<ProcessorId, EventResult.Accept> = processorHolder.mapEach { context ->
+        val matchResult: Map<ProcessorKey, EventResult.Accept> = processorHolder.mapEach { context ->
             context.process(data).let { it as? EventResult.Accept }
         }
         if (matchResult.isEmpty()) return

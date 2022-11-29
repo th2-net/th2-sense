@@ -4,6 +4,7 @@ package th2.sense;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
 import "google/protobuf/wrappers.proto";
 
 option java_multiple_files = true;
@@ -12,6 +13,22 @@ option java_package = "com.exactpro.th2.sense.grpc";
 service Sense {
   rpc NotifyOnEvents(NotificationRequest) returns (google.protobuf.Empty);
   rpc AwaitNotificationOnEvents(AwaitNotificationRequest) returns (google.protobuf.Empty);
+  rpc RegisterProcessor(RegistrationRequest) returns (ProcessorKey);
+  rpc UnregisterProcessor(ProcessorKey) returns (google.protobuf.Empty);
+}
+
+message ProcessorId {
+  string name = 1;
+}
+
+message RegistrationRequest {
+  ProcessorId id = 1;
+  google.protobuf.Struct parameters = 2;
+}
+
+message ProcessorKey {
+  ProcessorId id = 1;
+  uint32 inner_id = 2;
 }
 
 message AwaitNotificationRequest {

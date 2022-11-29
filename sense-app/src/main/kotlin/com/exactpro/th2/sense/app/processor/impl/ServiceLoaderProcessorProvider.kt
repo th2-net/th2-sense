@@ -18,7 +18,6 @@ package com.exactpro.th2.sense.app.processor.impl
 
 import java.util.ServiceLoader
 import java.util.ServiceLoader.Provider
-import java.util.function.Function
 import java.util.stream.Collectors
 import java.util.stream.Stream
 import com.exactpro.th2.sense.api.Processor
@@ -29,18 +28,20 @@ import com.exactpro.th2.sense.app.processor.ProcessorProvider
 import mu.KotlinLogging
 
 class ServiceLoaderProcessorProvider<P : Processor, T : ProcessorFactory<P, *>>(
-    private val processorFactoryClass: Class<out T>,
-    private val classLoader: ClassLoader = ServiceLoaderProcessorProvider::class.java.classLoader,
+    processorFactoryClass: Class<out T>,
+    classLoader: ClassLoader = ServiceLoaderProcessorProvider::class.java.classLoader,
 ) : ProcessorProvider<P> {
+    private val factories: Map<ProcessorId, T> = classLoader.factories(processorFactoryClass).collect(
+        Collectors.toUnmodifiableMap(
+            { it.id },
+            { it }
+        )
+    )
     override val processorSettings: Map<ProcessorId, Class<out ProcessorSettings>>
-        get() = classLoader.factories(processorFactoryClass)
-            .collect(Collectors.toUnmodifiableMap(
-                { it.id },
-                { it.settings },
-            ))
+        get() = factories.mapValues { it.value.settings }
 
     override fun loadProcessors(settings: Map<ProcessorId, ProcessorSettings>): Map<ProcessorId, P> {
-        return classLoader.load(processorFactoryClass, settings)
+        return load(factories, settings)
     }
 
     companion object {
@@ -53,27 +54,22 @@ class ServiceLoaderProcessorProvider<P : Processor, T : ProcessorFactory<P, *>>(
             ServiceLoaderProcessorProvider(T::class.java, classLoader)
 
         @JvmStatic
-        private fun <P : Processor, T : ProcessorFactory<P, *>> ClassLoader.load(
-            clazz: Class<out T>,
+        private fun <P : Processor, T : ProcessorFactory<P, *>> load(
+            factories: Map<ProcessorId, T>,
             settingsById: Map<ProcessorId, ProcessorSettings>,
-        ): Map<ProcessorId, P> = factories(clazz)
-            .filter {
-                val enabled = it.id in settingsById.keys
-                if (!enabled) {
-                    LOGGER.info { "Skip processor ${it.id} because it is not enabled" }
-                }
-                enabled
+        ): Map<ProcessorId, P> = factories.asSequence().filter { (id, _) ->
+            val enabled = id in settingsById.keys
+            if (!enabled) {
+                LOGGER.info { "Skip processor $id because it is not enabled" }
             }
-            .map {
-                @Suppress("UNCHECKED_CAST")
-                val factor: ProcessorFactory<P, ProcessorSettings> = it as ProcessorFactory<P, ProcessorSettings>
-                factor.run { create(checkNotNull(settingsById[id]) { "no configuration for processor $id" }) } }
-            .collect(Collectors.toUnmodifiableMap(
-                Processor::id,
-                Function.identity(),
-            )).also {
-                LOGGER.info { "Loaded ${it.size} processor(s): ${it.keys}" }
-            }
+            enabled
+        }.map { (_, factory) ->
+            @Suppress("UNCHECKED_CAST")
+            val factor: ProcessorFactory<P, ProcessorSettings> = factory as ProcessorFactory<P, ProcessorSettings>
+            factor.run { create(checkNotNull(settingsById[id]) { "no configuration for processor $id" }) }
+        }.associateBy { it.id }.also {
+            LOGGER.info { "Loaded ${it.size} processor(s): ${it.keys}" }
+        }
 
         @JvmStatic
         private fun <P : Processor, T : ProcessorFactory<P, *>> ClassLoader.factories(clazz: Class<out T>): Stream<T> =
