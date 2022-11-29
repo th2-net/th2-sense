@@ -105,7 +105,7 @@ internal class NoneEventTypeMatcher(
     }
 }
 
-internal class SimpleMatcherDelegate<T : Any>(
+internal class SimpleMatcherDelegate<T>(
     private val extractor: Event.() -> T,
 ) : ReadOnlyProperty<AllOfEventMatcherBuilder, SimpleMatcher<T>> {
     override fun getValue(thisRef: AllOfEventMatcherBuilder, property: KProperty<*>): SimpleMatcher<T> {

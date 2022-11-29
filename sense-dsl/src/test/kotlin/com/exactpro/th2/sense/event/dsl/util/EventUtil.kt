@@ -24,6 +24,7 @@ import com.google.protobuf.Timestamp
 import com.google.protobuf.UnsafeByteOperations
 
 fun createEvent(
+    id: EventID = createEventId("${System.nanoTime()}"),
     name: String = "Default Name",
     type: String = "Default Time",
     startTime: Instant = Instant.now(),
@@ -32,7 +33,7 @@ fun createEvent(
     parentEventID: EventID? = null,
     body: String = "[]",
 ): Event = Event.newBuilder()
-    .setEventId(EventID.newBuilder().setId("${System.nanoTime()}").build())
+    .setEventId(id)
     .setStatus(status)
     .setEventName(name)
     .setEventType(type)
@@ -43,6 +44,8 @@ fun createEvent(
     }
     .setBody(UnsafeByteOperations.unsafeWrap(body.toByteArray(Charsets.UTF_8)))
     .build()
+
+fun createEventId(id: String): EventID = EventID.newBuilder().setId(id).build()
 
 private fun Instant.toTimestamp(): Timestamp = Timestamp.newBuilder()
     .setSeconds(epochSecond)

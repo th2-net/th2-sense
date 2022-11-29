@@ -37,6 +37,8 @@ val AllOfEventMatcherBuilder.startTimestamp: SimpleMatcher<Instant> by matcher {
 val AllOfEventMatcherBuilder.endTimestamp: SimpleMatcher<Instant> by matcher { endTimestamp.toInstant() }
 val AllOfEventMatcherBuilder.status: SimpleMatcher<EventStatus> by matcher { status }
 val AllOfEventMatcherBuilder.body: SimpleMatcher<List<EventContent>> by matcher { EVENT_CONTENT_READER.readValue(body.toStringUtf8()) }
+val AllOfEventMatcherBuilder.parentId: SimpleMatcher<String?> by matcher { if (hasParentEventId()) parentEventId.id else null }
+val AllOfEventMatcherBuilder.id: SimpleMatcher<String> by matcher { eventId.id }
 
 infix fun RelatedEventMatcherBuilder.allOf(block: AllOfEventMatcherBuilder.() -> Unit) {
     register(matchAllOfInternal(block))
@@ -90,7 +92,7 @@ fun AllOfEventMatcherBuilder.anyOf(block: EventMatcherBuilder.() -> Unit) {
     register(name, matchAnyOfInternal(block))
 }
 
-private fun <T : Any> matcher(extractor: Event.() -> T): ReadOnlyProperty<AllOfEventMatcherBuilder, SimpleMatcher<T>> =
+private fun <T> matcher(extractor: Event.() -> T): ReadOnlyProperty<AllOfEventMatcherBuilder, SimpleMatcher<T>> =
     SimpleMatcherDelegate(extractor)
 
 

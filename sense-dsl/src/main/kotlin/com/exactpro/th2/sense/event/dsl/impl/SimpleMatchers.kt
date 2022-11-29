@@ -35,7 +35,7 @@ internal class AggregatedSimpleMatcher<T : Any> : SimpleMatcher<T> {
 }
 
 
-internal class SimpleMatcherImpl<T : Any>(
+internal class SimpleMatcherImpl<T>(
     private val extractor: Event.() -> T,
     private val addMatcher: (EventTypeMather) -> Unit,
 ) : SimpleMatcher<T> {

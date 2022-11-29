@@ -21,6 +21,7 @@ import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.event.content.EventContent.*
 import com.exactpro.th2.sense.event.dsl.util.createEvent
+import com.exactpro.th2.sense.event.dsl.util.createEventId
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -34,6 +35,31 @@ internal class TestEventRuleBuilderPositive : AbstractRuleBuilderTest() {
 
     @Nested
     inner class Simple {
+
+        @Test
+        fun `accepts by event id`() {
+            val event = createEvent(id = createEventId("id"))
+            val rule = rule {
+                eventType("test") whenever allOf {
+                    id equal "id"
+                }
+            }
+
+            rule.assertAcceptEvent(event) asType type("test")
+        }
+
+        @Test
+        fun `accepts by parent event id`() {
+            val id = createEventId("parent")
+            val event = createEvent(parentEventID = id)
+            val rule = rule {
+                eventType("test") whenever allOf {
+                    parentId.isNotNull() equal "parent"
+                }
+            }
+
+            rule.assertAcceptEvent(event) asType type("test")
+        }
 
         @Test
         fun `works with context`() {

@@ -91,8 +91,8 @@ fun <T : Any> SimpleMatcher<T?>.isNotNull(): SimpleMatcher<T> {
     }
 }
 
-infix fun <T : Any> SimpleMatcher<T>.equal(value: T): Unit = register("equal") { it == value }
-infix fun <T : Any> SimpleMatcher<T>.notEqual(value: T): Unit = register("notEqual") { it != value }
+infix fun <T> SimpleMatcher<T>.equal(value: T): Unit = register("equal") { it == value }
+infix fun <T> SimpleMatcher<T>.notEqual(value: T): Unit = register("notEqual") { it != value }
 infix fun <T : Any> SimpleMatcher<T>.`in`(values: Collection<T>): Unit = register("in") { it in values }
 infix fun <T : Any> SimpleMatcher<T>.notIn(values: Collection<T>): Unit = register("notIn") { it !in values }
 infix fun <T : Any> SimpleMatcher<T>.matches(function: SimpleMatchFunction<T>): Unit = register("matches", function)

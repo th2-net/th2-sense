@@ -20,6 +20,7 @@ import java.time.Instant
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.event.dsl.util.createEvent
+import com.exactpro.th2.sense.event.dsl.util.createEventId
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -87,6 +88,18 @@ internal class TestEventRuleBuilderNegative : AbstractRuleBuilderTest() {
             arguments(setupFun {
                 status equal EventStatus.SUCCESS
             }, createEvent(status = EventStatus.FAILED)),
+            arguments(setupFun {
+                parentId equal null
+            }, createEvent(parentEventID = createEventId("test"))),
+            arguments(setupFun {
+                parentId.isNotNull() equal "test"
+            }, createEvent()),
+            arguments(setupFun {
+                parentId.isNotNull() equal "test1"
+            }, createEvent(parentEventID = createEventId("test2"))),
+            arguments(setupFun {
+                id equal "test1"
+            }, createEvent(id = createEventId("test2"))),
         )
 
         private fun setupFun(setup: AllOfEventMatcherBuilder.() -> Unit): AllOfEventMatcherBuilder.() -> Unit = setup
