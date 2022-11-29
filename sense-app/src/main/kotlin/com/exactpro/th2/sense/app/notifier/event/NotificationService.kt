@@ -19,7 +19,8 @@ package com.exactpro.th2.sense.app.notifier.event
 import com.exactpro.th2.sense.api.EventType
 
 interface NotificationService {
-    fun submitNotification(notificationRequest: NotificationRequest)
+    fun submitNotification(notificationRequest: NotificationRequest): NotificationName
+    fun awaitNotification(name: NotificationName, callback: () -> Unit)
     fun removeNotification(name: NotificationName)
 }
 
@@ -28,5 +29,4 @@ data class NotificationRequest(
     val name: NotificationName,
     val eventsByType: Map<EventType, Long>,
     val description: String? = null,
-    val callback: () -> Unit = {},
 )

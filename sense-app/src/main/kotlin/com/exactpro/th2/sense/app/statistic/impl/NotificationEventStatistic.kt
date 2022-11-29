@@ -54,7 +54,7 @@ class NotificationEventStatistic(
     @GuardedBy("lock")
     private val expectationToTypes: Multimap<ExpectationName, EventType> = HashMultimap.create()
 
-    override fun submitNotification(notificationRequest: NotificationRequest) {
+    override fun submitNotification(notificationRequest: NotificationRequest): NotificationName {
         require(notificationRequest.eventsByType.isNotEmpty()) { "at least one type must be expected" }
         val actualExpectedCounts: Map<EventType, Long> = lock.read {
             notificationRequest.eventsByType.mapValues { (type, count) ->
@@ -67,7 +67,6 @@ class NotificationEventStatistic(
             actualExpectedCounts,
             notificationRequest.eventsByType,
             notificationRequest.description,
-            notificationRequest.callback,
         )
         lock.write {
             check(holder.name !in expectationToTypes.keys()) { "duplicated expectation '${holder.name}'" }
@@ -77,6 +76,19 @@ class NotificationEventStatistic(
                 expectationsByType.put(it, holder)
             }
             registered(holder)
+            return holder.name
+        }
+    }
+
+    override fun awaitNotification(name: NotificationName, callback: () -> Unit) {
+        lock.write {
+            val holder = expectationByName[name] ?: run {
+                LOGGER.info { "No expectation with name $name submitted" }
+                callback()
+                return
+            }
+            holder.addCallback(callback)
+            LOGGER.info { "Callback added to expectation $name" }
         }
     }
 
@@ -109,6 +121,7 @@ class NotificationEventStatistic(
     override fun refresh(currentTime: Instant) = Unit
 
     private fun cleanExpectation(expectation: ExpectationHolder) {
+        expectationByName.remove(expectation.name)
         expectationToTypes.removeAll(expectation.name).forEach { mappedType ->
             val expectations = expectationsByType.get(mappedType)
             expectations.remove(expectation)
@@ -136,7 +149,13 @@ class NotificationEventStatistic(
         )
         runCatching {
             LOGGER.info { "Executing notification ${expectation.name} callback" }
-            expectation.callback()
+            expectation.callbacks.forEach {
+                try {
+                    it()
+                } catch (ex: Exception) {
+                    LOGGER.error(ex) { "cannot execute callback" }
+                }
+            }
         }.onFailure {
             LOGGER.error(it) { "Cannot execute notification callback for ${expectation.name}" }
         }
@@ -160,9 +179,11 @@ class NotificationEventStatistic(
         private val expectedByType: Map<EventType, Long>,
         val relativeExpectedByType: Map<EventType, Long>,
         val description: String? = null,
-        val callback: () -> Unit = {},
     ) {
         private val achieved: MutableSet<EventType> = hashSetOf()
+        private val _callbacks: MutableList<() -> Unit> = arrayListOf()
+        val callbacks: List<() -> Unit>
+            get() = _callbacks
 
         /**
          * @return `true` if all expectation are achieved. Otherwise, returns `false`
@@ -174,6 +195,10 @@ class NotificationEventStatistic(
                 achieved += type
             }
             return isAchieved
+        }
+
+        fun addCallback(callback: () -> Unit) {
+            _callbacks += callback
         }
 
         override fun toString(): String {

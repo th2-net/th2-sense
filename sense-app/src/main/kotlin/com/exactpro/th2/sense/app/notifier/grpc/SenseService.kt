@@ -26,17 +26,17 @@ import java.util.concurrent.TimeoutException
 import java.util.stream.Collectors
 import com.exactpro.th2.common.message.toJavaDuration
 import com.exactpro.th2.common.message.toJson
-import com.exactpro.th2.sense.api.EventProcessor
 import com.exactpro.th2.sense.api.EventType
 import com.exactpro.th2.sense.api.ProcessorId
 import com.exactpro.th2.sense.app.cfg.GrpcSenseConfiguration
+import com.exactpro.th2.sense.app.notifier.event.NotificationName
 import com.exactpro.th2.sense.app.notifier.event.NotificationRequest
 import com.exactpro.th2.sense.app.notifier.event.NotificationService
 import com.exactpro.th2.sense.app.processor.ProcessorKey
-import com.exactpro.th2.sense.app.processor.ProcessorProvider
 import com.exactpro.th2.sense.app.processor.ProcessorRegistrar
 import com.exactpro.th2.sense.grpc.AwaitNotificationRequest
 import com.exactpro.th2.sense.grpc.ExpectedEvent
+import com.exactpro.th2.sense.grpc.NotificationId
 import com.exactpro.th2.sense.grpc.RegistrationRequest
 import com.exactpro.th2.sense.grpc.SenseGrpc.SenseImplBase
 import com.google.protobuf.Empty
@@ -51,11 +51,11 @@ class SenseService(
     private val registrar: ProcessorRegistrar,
 ) : SenseImplBase(), AutoCloseable {
     private val executor = Executors.newSingleThreadScheduledExecutor()
-    override fun notifyOnEvents(request: GrpcNotificationRequest, responseObserver: StreamObserver<Empty>) {
+    override fun notifyOnEvents(request: GrpcNotificationRequest, responseObserver: StreamObserver<NotificationId>) {
         LOGGER.info { "Received request ${request.toJson()}" }
         try {
-            notificationService.submitNotification(request.toInternalRequest())
-            responseObserver.onNext(Empty.getDefaultInstance())
+            val name = notificationService.submitNotification(request.toInternalRequest())
+            responseObserver.onNext(NotificationId.newBuilder().setName(name).build())
             responseObserver.onCompleted()
             LOGGER.info { "Request $request completed" }
         } catch (ex: Exception) {
@@ -72,20 +72,20 @@ class SenseService(
                 if (hasTimeout()) timeout.toJavaDuration() else configuration.defaultAwaitTimeout
             }
             require(awaitTimeout.run { !isZero && !isNegative }) { "invalid await timeout" }
-            val completion = CompletableFuture<Any?>()
-            val notificationRequest = request.request.toInternalRequest { completion.complete(null) }
-            val future = completion.whenComplete { _, error ->
+            require(request.hasId()) { "notification id is not set" }
+            val notificationName: NotificationName = request.id.name
+            val future = CompletableFuture<Any?>().whenComplete { _, error ->
                 if (error != null) {
-                    runCatching { notificationService.removeNotification(notificationRequest.name) }
-                        .onFailure { LOGGER.error(it) { "cannot remove notification ${notificationRequest.name}" } }
-                    responseObserver.onError(error.toStatus(request.request).asRuntimeException())
+                    runCatching { notificationService.removeNotification(notificationName) }
+                        .onFailure { LOGGER.warn(it) { "cannot remove notification $notificationName" } }
+                    responseObserver.onError(error.toStatus(request).asRuntimeException())
                 } else {
                     responseObserver.onNext(Empty.getDefaultInstance())
                     responseObserver.onCompleted()
                     LOGGER.info { "Request $request completed" }
                 }
             }
-            notificationService.submitNotification(notificationRequest)
+            notificationService.awaitNotification(notificationName) { future.complete(null) }
             if (!future.isDone) {
                 executor.schedule(
                     { future.completeExceptionally(TimeoutException("notification was not invoked withing $awaitTimeout")) },
@@ -96,7 +96,7 @@ class SenseService(
             LOGGER.info { "Request ${request.toJson()} processed" }
         } catch (ex: Exception) {
             responseObserver.onError(
-                ex.toStatus(request.request).asRuntimeException()
+                ex.toStatus(request).asRuntimeException()
             )
         }
     }
@@ -162,7 +162,7 @@ class SenseService(
     }
 }
 
-private fun GrpcNotificationRequest.toInternalRequest(onCompleted: () -> Unit = {}): NotificationRequest {
+private fun GrpcNotificationRequest.toInternalRequest(): NotificationRequest {
     return NotificationRequest(
         name = name.apply { require(isNotBlank()) { "name cannot be blank" } },
         eventsByType = expectedEventsList.stream().collect(
@@ -171,7 +171,6 @@ private fun GrpcNotificationRequest.toInternalRequest(onCompleted: () -> Unit = 
                 { it.expectedCount },
             )
         ),
-        callback = onCompleted,
     )
 }
 private fun ExpectedEvent.toEventType(): EventType = EventType(type.name)

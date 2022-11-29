@@ -11,10 +11,14 @@ option java_multiple_files = true;
 option java_package = "com.exactpro.th2.sense.grpc";
 
 service Sense {
-  rpc NotifyOnEvents(NotificationRequest) returns (google.protobuf.Empty);
+  rpc NotifyOnEvents(NotificationRequest) returns (NotificationId);
   rpc AwaitNotificationOnEvents(AwaitNotificationRequest) returns (google.protobuf.Empty);
   rpc RegisterProcessor(RegistrationRequest) returns (ProcessorKey);
   rpc UnregisterProcessor(ProcessorKey) returns (google.protobuf.Empty);
+}
+
+message NotificationId {
+  string name = 1;
 }
 
 message ProcessorId {
@@ -33,7 +37,7 @@ message ProcessorKey {
 
 message AwaitNotificationRequest {
   google.protobuf.Duration timeout = 1;
-  NotificationRequest request = 2;
+  NotificationId id = 2;
 }
 
 message NotificationRequest {
