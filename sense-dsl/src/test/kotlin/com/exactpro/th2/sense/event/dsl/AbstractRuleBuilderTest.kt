@@ -21,11 +21,13 @@ import com.exactpro.th2.sense.api.EventProvider
 import com.exactpro.th2.sense.api.EventResult
 import com.exactpro.th2.sense.api.EventType
 import com.exactpro.th2.sense.api.ProcessorContext
+import com.nhaarman.mockitokotlin2.any
+import com.nhaarman.mockitokotlin2.doAnswer
 import com.nhaarman.mockitokotlin2.doReturn
 import com.nhaarman.mockitokotlin2.mock
 import com.nhaarman.mockitokotlin2.same
 import com.nhaarman.mockitokotlin2.whenever
-import org.junit.jupiter.api.Assertions
+import mu.KotlinLogging
 import strikt.api.DescribeableBuilder
 import strikt.api.expectThat
 import strikt.assertions.isA
@@ -35,7 +37,26 @@ import strikt.assertions.isSameInstanceAs
 abstract class AbstractRuleBuilderTest {
     protected val eventProvider = mock<EventProvider> { }
     protected val context: ProcessorContext = mock {
+        val contextMap: MutableMap<ProcessorContext.Key<*>, Any> = hashMapOf()
         on { eventProvider } doReturn eventProvider
+        onGeneric { get(any()) } doAnswer {
+            val key = it.getArgument<ProcessorContext.Key<*>>(0)
+            LOGGER.info { "Getting value by key $key" }
+            contextMap[key]
+        }
+
+        onGeneric { set(any(), any()) } doAnswer {
+            val key = it.getArgument<ProcessorContext.Key<*>>(0)
+            val value = it.getArgument<Any>(1)
+            LOGGER.info { "Set value $value to key $key" }
+            contextMap[key] = value
+        }
+
+        onGeneric { remove(any()) } doAnswer {
+            val key = it.getArgument<ProcessorContext.Key<*>>(0)
+            LOGGER.info { "Remove value by key $key" }
+            contextMap.remove(key)
+        }
     }
 
     protected fun EventRule.assertAcceptEvent(event: Event): DescribeableBuilder<EventType> {
@@ -65,4 +86,8 @@ abstract class AbstractRuleBuilderTest {
     protected fun rule(block: EventRuleBuilder.() -> Unit): EventRule = EventRuleBuilder().also(block).build()
 
     protected fun type(name: String): EventType = EventType(name)
+
+    companion object {
+        private val LOGGER = KotlinLogging.logger { }
+    }
 }

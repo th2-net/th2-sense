@@ -95,6 +95,7 @@ infix fun <T : Any> SimpleMatcher<T>.equal(value: T): Unit = register("equal") {
 infix fun <T : Any> SimpleMatcher<T>.notEqual(value: T): Unit = register("notEqual") { it != value }
 infix fun <T : Any> SimpleMatcher<T>.`in`(values: Collection<T>): Unit = register("in") { it in values }
 infix fun <T : Any> SimpleMatcher<T>.notIn(values: Collection<T>): Unit = register("notIn") { it !in values }
+infix fun <T : Any> SimpleMatcher<T>.matches(function: SimpleMatchFunction<T>): Unit = register("matches", function)
 
 //region Strings
 infix fun SimpleMatcher<String>.matchRegex(regex: Regex): Unit = register("matchRegex") { regex.matches(it) }
