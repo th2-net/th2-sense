@@ -188,6 +188,17 @@ fun SimpleMatcher<out EventContent>.isVerification(): SimpleMatcher<EventContent
 fun SimpleMatcher<out EventContent>.isMessage(): SimpleMatcher<EventContent.Message> = instanceSimpleMatcher()
 
 fun SimpleMatcher<out EventContent>.isReference(): SimpleMatcher<EventContent.Reference> = instanceSimpleMatcher()
+
+fun SimpleMatcher<EventContent.Table.Row>.getColumn(column: String): SimpleMatcher<String?> {
+    val parent = this
+    return object : SimpleMatcher<String?> {
+        override fun register(name: String, match: SimpleMatchFunction<String?>) {
+            parent.register("get column '$column'") {
+                match.matchAndLog(name, it[column], this)
+            }
+        }
+    }
+}
 //endregion
 
 private inline fun <reified T> SimpleMatcher<out Any>.instanceSimpleMatcher() = InstanceSimpleMatcher(this, T::class.java)
