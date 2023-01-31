@@ -177,15 +177,10 @@ The source type. Currently supported:
 + mq - from MQ
 + crawler - from Crawler
 
-##### mq
+if source type is crawler then [Processor setting](#processorSettings) and [crawler-processor settings](https://github.com/th2-net/th2-processor-core-j/tree/TH2-4262-reduce-load-book-and-page#configuration-example) are required
 
-No additional configuration
-
-##### crawler
-
-**name** - processor name
-
-**version** - processor version
+#### processorSettings
+* name - name of crawler-processor
 
 #### processors
 
@@ -233,37 +228,80 @@ spec:
   custom-config:
     source:
       type: crawler
-      name: sense
-      version: 1
       # or
       # type: mq
     processors:
       - id: "processor id"
         param: 1
+    stateSessionAlias: my-processor-state
+    enableStoreState: false
+
+    crawler:
+       from: 2021-06-16T12:00:00.00Z
+       to: 2021-06-17T14:00:00.00Z
+
+       intervalLength: PT10M
+       syncInterval: PT10M
+       awaitTimeout: 10
+       awaitUnit: SECONDS
+
+       messages:
+          messageKinds:
+             - MESSAGE
+             - RAW_MESSAGES
+          bookToGroups:
+             book1:
+                - group1
+                - group2
+             book2:
+                - group1
+                - group2
+       events:
+          bookToScope:
+             book3:
+                - scope1
+                - scope2
+             book4:
+                - scope1
+                - scope2
   pins:
-    - name: crawler-server
-      connection-type: grpc-server
-      service-classes:
-      - com.exactpro.th2.crawler.dataprocessor.grpc.DataProcessorService
-      - th2.crawler.dataprocessor.DataProcessorService
-    - name: sense-server
-      connection-type: grpc-server
-      service-classes:
-        - com.exactpro.th2.sense.grpc.SenseService
-        - th2.sense.SenseService
-    - name: provider
-      connection-type: grpc-client
-      service-class: com.exactpro.th2.dataprovider.grpc.DataProviderService
-    - name: input_events
-      connection-type: mq
-      attributes:
-        - subscribe
-        - event
-    - name: input_messages
-      connection-type: mq
-      attributes:
-        - subscribe
-        - group
+    gprc:
+      client:
+        - name: provider
+          service-class: com.exactpro.th2.dataprovider.lw.grpc.DataProviderService
+        - name: to_data_provider
+          service-class: com.exactpro.th2.dataprovider.lw.grpc.DataProviderService
+          linkTo:
+             - box: lw-data-provider
+               pin: server
+        - name: to_data_provider_stream
+          service-class: com.exactpro.th2.dataprovider.lw.grpc.QueueDataProviderService
+          linkTo:
+            - box: lw-data-provider
+              pin: server
+      server:
+        - name: sense-server
+          connection-type: grpc-server
+          service-classes:
+            - com.exactpro.th2.sense.grpc.SenseService
+            - th2.sense.SenseService
+    mq:  
+      consumers:
+        - name: input_events
+          connection-type: mq
+          attributes:
+            - subscribe
+            - event
+        - name: input_messages
+          connection-type: mq
+          attributes:
+            - subscribe
+            - group
+      publishers:
+        - name: state
+          attributes:
+            - store
+      
   extended-settings:
     service:
       enabled: true
