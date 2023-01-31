@@ -3,6 +3,6 @@ plugins {
 }
 
 dependencies {
-    api 'com.exactpro.th2:grpc-data-provider:1.1.0'
+    api 'com.exactpro.th2:grpc-lw-data-provider:2.0.0-th2-3834-refactor-properties-3607479560-SNAPSHOT'
     api 'com.fasterxml.jackson.core:jackson-annotations'
 }

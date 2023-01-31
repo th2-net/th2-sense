@@ -20,9 +20,10 @@ import com.exactpro.th2.common.event.Event as CommonEvent
 import com.exactpro.th2.common.event.EventUtils
 import com.exactpro.th2.common.grpc.EventBatch
 import com.exactpro.th2.common.schema.factory.AbstractCommonFactory
+import com.exactpro.th2.common.schema.factory.CommonFactory
 import com.exactpro.th2.common.schema.message.MessageRouter
 import com.exactpro.th2.common.schema.message.storeEvent
-import com.exactpro.th2.dataprovider.grpc.DataProviderService
+import com.exactpro.th2.dataprovider.lw.grpc.DataProviderService
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.api.EventProcessor
 import com.exactpro.th2.sense.api.EventProcessorFactory
@@ -31,14 +32,7 @@ import com.exactpro.th2.sense.api.MessageProvider
 import com.exactpro.th2.sense.api.ProcessorId
 import com.exactpro.th2.sense.api.ProcessorSettings
 import com.exactpro.th2.sense.app.bootstrap.App
-import com.exactpro.th2.sense.app.cfg.CachingConfiguration
-import com.exactpro.th2.sense.app.cfg.CrawlerSourceConfiguration
-import com.exactpro.th2.sense.app.cfg.GrpcSenseConfiguration
-import com.exactpro.th2.sense.app.cfg.HttpServerConfiguration
-import com.exactpro.th2.sense.app.cfg.MqSourceConfiguration
-import com.exactpro.th2.sense.app.cfg.SenseAppConfiguration
-import com.exactpro.th2.sense.app.cfg.SourceConfiguration
-import com.exactpro.th2.sense.app.cfg.StatisticConfiguration
+import com.exactpro.th2.sense.app.cfg.*
 import com.exactpro.th2.sense.app.notifier.event.GrafanaEventNotifier
 import com.exactpro.th2.sense.app.notifier.grpc.SenseService
 import com.exactpro.th2.sense.app.notifier.http.SenseHttpServer
@@ -50,6 +44,7 @@ import com.exactpro.th2.sense.app.processor.impl.ProcessorHolder
 import com.exactpro.th2.sense.app.processor.impl.ProcessorRegistrarImpl
 import com.exactpro.th2.sense.app.processor.impl.ServiceLoaderProcessorProvider
 import com.exactpro.th2.sense.app.source.Source
+import com.exactpro.th2.sense.app.source.crawler.CrawlerSourceHolder
 import com.exactpro.th2.sense.app.source.crawler.SourceCrawler
 import com.exactpro.th2.sense.app.source.event.MqEventSource
 import com.exactpro.th2.sense.app.statistic.impl.AggregatedEventStatistic
@@ -80,6 +75,7 @@ class Microservice : App {
             eventsCaching: CachingConfiguration,
             httpServerCfg: HttpServerConfiguration?,
             grpcConfiguration: GrpcSenseConfiguration,
+            processorCfg: ProcessorConfiguration?
         ) = checkNotNull(commonFactory.getCustomConfiguration(SenseAppConfiguration::class.java, mapper)) {
             "cannot read configuration"
         }
@@ -89,7 +85,7 @@ class Microservice : App {
 
         val processorsById = processorProvider.loadProcessors(processors)
         val eventBatchRouter = commonFactory.eventBatchRouter
-        val rootEventID = createRootEvent(eventBatchRouter, processorsById.keys)
+        val rootEventID = createRootEvent(eventBatchRouter, processorsById.keys, commonFactory.boxConfiguration.bookName)
 
         val onError: (String, Throwable) -> Unit = { name, cause ->
             eventBatchRouter.storeErrorEvent(name, cause, rootEventID)
@@ -123,7 +119,7 @@ class Microservice : App {
         closeResource("grpc sense service", senseService::close)
         servers += senseService
 
-        val eventSource: Source<Event> = createSource(commonFactory, sourceCfg, servers::add)
+        val eventSource: Source<Event> = createSource(commonFactory, sourceCfg, processorCfg, closeResource)
 
         eventSource.addListener(eventListener)
 //        messageSource.addListener()
@@ -163,13 +159,14 @@ class Microservice : App {
         }
     }
 
-    private fun createRootEvent(eventBatchRouter: MessageRouter<EventBatch>, processorIds: Set<ProcessorId>): String {
+    private fun createRootEvent(eventBatchRouter: MessageRouter<EventBatch>, processorIds: Set<ProcessorId>, bookName: String): String {
         return eventBatchRouter.storeEvent(
             CommonEvent.start().endTimestamp()
                 .name("Sense root event")
                 .type("Microservice")
                 .status(CommonEvent.Status.PASSED)
-                .bodyData(EventUtils.createMessageBean("Registered processors: ${processorIds.joinToString { it.name }}"))
+                .bodyData(EventUtils.createMessageBean("Registered processors: ${processorIds.joinToString { it.name }}")),
+            bookName
         ).id
     }
 
@@ -179,9 +176,10 @@ class Microservice : App {
     private fun createSource(
         commonFactory: AbstractCommonFactory,
         sourceCfg: SourceConfiguration,
-        addServer: (BindableService) -> Unit,
+        processorConfiguration: ProcessorConfiguration?,
+        closeResource: (name: String, action: () -> Unit) -> Unit
     ): Source<Event> = when (sourceCfg) {
-        is CrawlerSourceConfiguration -> setupCrawler(sourceCfg, addServer)
+        is CrawlerSourceConfiguration -> setupCrawler(requireNotNull(processorConfiguration), commonFactory as CommonFactory, closeResource)
         MqSourceConfiguration -> MqEventSource(commonFactory.eventBatchRouter)/* to MqMessageSource(commonFactory.messageRouterMessageGroupBatch)*/
     }
 
@@ -196,13 +194,15 @@ class Microservice : App {
     }
 
     private fun setupCrawler(
-        sourceCfg: CrawlerSourceConfiguration,
-        addServer: (BindableService) -> Unit,
+        processorConfiguration: ProcessorConfiguration,
+        factory: CommonFactory,
+        closeResource: (name: String, action: () -> Unit) -> Unit
     ): Source<Event> {
-        val sourceCrawler = SourceCrawler(sourceCfg)
-        addServer(sourceCrawler)
+        val sourceCrawler = SourceCrawler(factory)
+        sourceCrawler.start()
+        closeResource("processor-app", sourceCrawler::close)
 
-        return sourceCrawler.events
+        return requireNotNull(CrawlerSourceHolder[processorConfiguration.name]).events
     }
 
     companion object {

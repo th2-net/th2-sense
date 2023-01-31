@@ -31,7 +31,8 @@ data class SenseAppConfiguration(
     val messagesCaching: CachingConfiguration = CachingConfiguration(),
     val eventsCaching: CachingConfiguration = CachingConfiguration(),
     val httpConfiguration: HttpServerConfiguration? = null,
-    val grpcConfiguration: GrpcSenseConfiguration = GrpcSenseConfiguration()
+    val grpcConfiguration: GrpcSenseConfiguration = GrpcSenseConfiguration(),
+    val processorConfiguration: ProcessorConfiguration? = null
 )
 
 private class ListToMapConverter : StdConverter<List<ProcessorSettings>, Map<ProcessorId, ProcessorSettings>>() {

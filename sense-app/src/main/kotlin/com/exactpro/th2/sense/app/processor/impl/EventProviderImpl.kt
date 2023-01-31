@@ -18,7 +18,7 @@ package com.exactpro.th2.sense.app.processor.impl
 
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.message.toJson
-import com.exactpro.th2.dataprovider.grpc.DataProviderService
+import com.exactpro.th2.dataprovider.lw.grpc.DataProviderService
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.api.EventProvider
 import com.exactpro.th2.sense.app.cfg.CachingConfiguration

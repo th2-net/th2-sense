@@ -16,10 +16,11 @@
 
 package com.exactpro.th2.sense.app.source.event
 
-import com.exactpro.th2.common.grpc.Event as GrpcEvent
+
 import com.exactpro.th2.common.grpc.EventBatch
 import com.exactpro.th2.common.schema.message.MessageRouter
 import com.exactpro.th2.sense.api.Event
+import com.exactpro.th2.common.grpc.Event as GrpcEvent
 import com.exactpro.th2.sense.app.source.MqSource
 
 class MqEventSource(
@@ -32,7 +33,6 @@ private fun GrpcEvent.toModel(): Event {
     return Event.newBuilder()
         .setEventName(name)
         .setEventType(type)
-        .setStartTimestamp(startTimestamp)
         .setEndTimestamp(endTimestamp)
         .setBody(body)
         .addAllAttachedMessageId(attachedMessageIdsList)

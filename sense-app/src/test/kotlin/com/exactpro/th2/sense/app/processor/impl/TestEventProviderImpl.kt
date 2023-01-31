@@ -18,8 +18,8 @@ package com.exactpro.th2.sense.app.processor.impl
 
 import com.exactpro.th2.common.event.EventUtils
 import com.exactpro.th2.common.grpc.EventID
-import com.exactpro.th2.dataprovider.grpc.DataProviderService
-import com.exactpro.th2.dataprovider.grpc.EventResponse
+import com.exactpro.th2.dataprovider.lw.grpc.DataProviderService
+import com.exactpro.th2.dataprovider.lw.grpc.EventResponse
 import com.exactpro.th2.sense.api.Event
 import com.exactpro.th2.sense.app.cfg.CachingConfiguration
 import com.nhaarman.mockitokotlin2.doReturn
@@ -32,6 +32,10 @@ import strikt.api.expect
 import strikt.api.expectThat
 import strikt.assertions.isSameInstanceAs
 import strikt.assertions.isSuccess
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 internal class TestEventProviderImpl {
     private val dataProviderService = mock<DataProviderService> {  }
@@ -83,7 +87,7 @@ internal class TestEventProviderImpl {
     }
 
     private fun createEvent(parentId: EventID? = null): EventResponse = Event.newBuilder()
-        .setEventId(EventUtils.toEventID(System.nanoTime().toString()))
+        .setEventId(EventUtils.toEventID(LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant(), "book", null))
         .apply {
             parentId?.also {
                 parentEventId = it

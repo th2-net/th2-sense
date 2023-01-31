@@ -16,8 +16,10 @@
 
 package com.exactpro.th2.sense.app.cfg
 
+import com.exactpro.th2.processor.api.IProcessorSettings
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonTypeName
+import com.google.auto.service.AutoService
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -30,7 +32,4 @@ sealed class SourceConfiguration
 object MqSourceConfiguration : SourceConfiguration()
 
 @JsonTypeName("crawler")
-data class CrawlerSourceConfiguration(
-    val name: String,
-    val version: String,
-) : SourceConfiguration()
+object CrawlerSourceConfiguration : SourceConfiguration()
