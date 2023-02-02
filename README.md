@@ -214,7 +214,9 @@ If specified the HTTP server will be started to allow notification submission.
 
 **port** - the port to start listening (if _0_ the random free port will be used)
 
-CR example:
+# CR example:
+
+## Crawler strategy
 
 ```yaml
 apiVersion: th2.exactpro.com/v1
@@ -223,13 +225,9 @@ metadata:
   name: sense
 spec:
   image-name: <image-name>
-  image-version: 0.0.1
+  image-version: 1.0.0
   type: th2-act
   custom-config:
-    source:
-      type: crawler
-      # or
-      # type: mq
     processors:
       - id: "processor id"
         param: 1
@@ -267,8 +265,6 @@ spec:
   pins:
     gprc:
       client:
-        - name: provider
-          service-class: com.exactpro.th2.dataprovider.lw.grpc.DataProviderService
         - name: to_data_provider
           service-class: com.exactpro.th2.dataprovider.lw.grpc.DataProviderService
           linkTo:
@@ -286,17 +282,6 @@ spec:
             - com.exactpro.th2.sense.grpc.SenseService
             - th2.sense.SenseService
     mq:  
-      consumers:
-        - name: input_events
-          connection-type: mq
-          attributes:
-            - subscribe
-            - event
-        - name: input_messages
-          connection-type: mq
-          attributes:
-            - subscribe
-            - group
       publishers:
         - name: state
           attributes:
@@ -319,5 +304,54 @@ spec:
       requests:
         memory: 110Mi
         cpu: 50m
-
 ```
+
+## Realtime strategy
+
+```yaml
+apiVersion: th2.exactpro.com/v1
+kind: Th2Box
+metadata:
+   name: sense
+spec:
+  image-name: <image-name>
+  image-version: 1.0.0
+  type: th2-act
+  custom-config:
+    processors:
+      - id: "processor id"
+        param: 1
+    stateSessionAlias: my-processor-state
+    enableStoreState: false
+
+    realtime:
+      enableMessageSubscribtion: true
+      enableEventSubscribtion: false
+  pins:
+    grpc:
+      client:
+        - name: to_data_provider
+          service-class: com.exactpro.th2.dataprovider.lw.grpc.DataProviderService
+          linkTo:
+            - box: lw-data-provider
+              pin: server
+    mq:
+      subscribers:
+        - name: messages
+          attributes:
+            - group
+            - in
+        - name: events
+          attributes:
+            - event
+            - in
+      publishers:
+        - name: state
+          attributes:
+            - store
+```
+
+# Changelog
+## 1.0.0
+  + migration to `processor-core-j`
+  + migration to `book and pages`
