@@ -4,7 +4,7 @@ plugins {
 }
 
 dependencies {
-    implementation 'com.exactpro.th2:common:4.0.0-TH2-4262-reduce-load-book-and-page-3574992387-SNAPSHOT'
+    implementation 'com.exactpro.th2:common:5.1.0-dev-version-5-3967999162-SNAPSHOT'
 
     api project(':sense-api')
     api project(':sense-dsl')
@@ -13,7 +13,7 @@ dependencies {
     }
 
     implementation 'com.exactpro.th2:common-utils:0.0.1-book-and-page-3572891451-SNAPSHOT'
-    implementation 'com.exactpro.th2:processor-core:0.0.1-TH2-4262-reduce-load-book-and-page-3627816228-ffc970b-SNAPSHOT'
+    implementation 'com.exactpro.th2:processor-core:0.1.0-dev-version-1-4063691039-1761242-SNAPSHOT'
 
     implementation 'com.google.guava:guava'
 

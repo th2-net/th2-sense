@@ -16,15 +16,17 @@
 
 package com.exactpro.th2.sense.app.cfg
 
+import com.exactpro.th2.processor.api.IProcessorSettings
 import java.util.function.Function
 import java.util.stream.Collectors
 import com.exactpro.th2.sense.api.ProcessorId
 import com.exactpro.th2.sense.api.ProcessorSettings
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.util.StdConverter
+import com.google.auto.service.AutoService
 
+@AutoService(IProcessorSettings::class)
 data class SenseAppConfiguration(
-    val source: SourceConfiguration,
     @JsonDeserialize(converter = ListToMapConverter::class)
     val processors: Map<ProcessorId, ProcessorSettings>,
     val statistic: StatisticConfiguration = StatisticConfiguration(),
@@ -32,8 +34,7 @@ data class SenseAppConfiguration(
     val eventsCaching: CachingConfiguration = CachingConfiguration(),
     val httpConfiguration: HttpServerConfiguration? = null,
     val grpcConfiguration: GrpcSenseConfiguration = GrpcSenseConfiguration(),
-    val processorSettings: ProcessorConfiguration? = null
-)
+) : IProcessorSettings
 
 private class ListToMapConverter : StdConverter<List<ProcessorSettings>, Map<ProcessorId, ProcessorSettings>>() {
     override fun convert(value: List<ProcessorSettings>): Map<ProcessorId, ProcessorSettings> {
