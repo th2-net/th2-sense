@@ -47,7 +47,7 @@ To use th2-sense you need:
     }
     
     application {
-        mainClass.set('com.exactpro.th2.sense.app.bootstrap.Main')
+        mainClass.set('com.exactpro.th2.processor.MainKt')
     }
     ```
    </details>

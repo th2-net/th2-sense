@@ -30,13 +30,10 @@ import com.exactpro.th2.sense.app.statistic.impl.BucketEventStatistic
 import com.exactpro.th2.sense.app.statistic.impl.GrafanaEventStatistic
 import com.exactpro.th2.sense.app.statistic.impl.NotificationEventStatistic
 import com.exactpro.th2.sense.app.notifier.grpc.SenseService
-import com.exactpro.th2.sense.app.notifier.http.SenseHttpServer
-import com.exactpro.th2.sense.app.source.Source
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.google.auto.service.AutoService
-import io.grpc.BindableService
 import mu.KotlinLogging
 import java.time.Instant
 import java.util.Deque
@@ -50,14 +47,6 @@ class SenseProcessorFactory : IProcessorFactory {
 
     override fun create(context: ProcessorContext): IProcessor {
 
-        val closeResource: (name: String, resource: () -> Unit) -> Unit = { name, resource ->
-            resources += {
-                LOGGER.info { "Closing resource $name" }
-                runCatching(resource).onFailure {
-                    LOGGER.error(it) { "cannot close resource $name" }
-                }
-            }
-        }
         val commonFactory = context.commonFactory
         val (
             processors: Map<ProcessorId, ProcessorSettings>,
@@ -106,35 +95,21 @@ class SenseProcessorFactory : IProcessorFactory {
             }
         )
 
-        val servers = arrayListOf<BindableService>()
-
         val registrar = ProcessorRegistrarImpl(processorProvider, holder)
 
         val senseService = SenseService(grpcConfiguration, notificationEventStat, registrar)
-        closeResource("grpc sense service", senseService::close)
-        servers += senseService
 
-        val processor = SenseProcessor()
-
-        val eventSource: Source<Event> = processor.events
-
-        eventSource.addListener(eventListener)
-
-        eventSource.start()
-
-        val server = commonFactory.grpcRouter.startServer(*servers.toTypedArray())
-        server.start()
-        closeResource("grpc servers", server::shutdown)
-
-        httpServerCfg?.apply {
-            val httpServer = SenseHttpServer(this, notificationEventStat)
-            closeResource("http server", httpServer::close)
+        return SenseProcessor(
+            eventListener,
+            httpServerCfg,
+            notificationEventStat,
+        )
+        { closeResource ->
+            val server = commonFactory.grpcRouter.startServer(senseService)
+            closeResource("grpc sense service", senseService::close)
+            server.start()
+            closeResource("grpc servers", server::shutdown)
         }
-
-        closeResource("event source", eventSource::close)
-
-
-        return SenseProcessor()
     }
 
     override fun createProcessorEvent(): CommonEvent = CommonEvent.start().endTimestamp()
@@ -142,8 +117,8 @@ class SenseProcessorFactory : IProcessorFactory {
         .description("Will contain all events with errors and information about processed events/messages")
         .type("Microservice")
 
-    override fun registerModules(objectMapper: ObjectMapper) {
-        with(objectMapper) {
+    override fun registerModules(configureMapper: ObjectMapper) {
+        with(configureMapper) {
             registerModule(
                 SimpleModule().addAbstractTypeMapping(
                     IProcessorSettings::class.java,
@@ -156,7 +131,7 @@ class SenseProcessorFactory : IProcessorFactory {
             .map { (id, clazz) -> NamedType(clazz, id.name) }
             .toList().toTypedArray()
         if (processorSettings.isNotEmpty()) {
-            objectMapper.registerSubtypes(*processorSettings)
+            configureMapper.registerSubtypes(*processorSettings)
         }
     }
 

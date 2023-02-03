@@ -21,22 +21,53 @@ import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.util.toInstant
 import com.exactpro.th2.processor.api.IProcessor
 import com.exactpro.th2.sense.api.Event
+import com.exactpro.th2.sense.app.cfg.HttpServerConfiguration
+import com.exactpro.th2.sense.app.notifier.http.SenseHttpServer
+import com.exactpro.th2.sense.app.processor.event.EventProcessorListener
 import com.exactpro.th2.sense.app.source.AbstractSource
 import com.exactpro.th2.sense.app.source.Source
+import com.exactpro.th2.sense.app.statistic.impl.NotificationEventStatistic
 import com.google.auto.service.AutoService
 import com.google.protobuf.TextFormat.shortDebugString
+import io.grpc.Server
 import mu.KotlinLogging
 import java.time.Instant
+import java.util.*
+import java.util.concurrent.ConcurrentLinkedDeque
 
 @AutoService(IProcessor::class)
-class SenseProcessor: IProcessor {
+class SenseProcessor(
+    eventListener: EventProcessorListener,
+    httpServerCfg: HttpServerConfiguration?,
+    notificationEventStat: NotificationEventStatistic,
+    startServers: ((name: String, resource: () -> Unit) -> Unit) -> Unit
+) : IProcessor {
+    private val resources: Deque<() -> Unit> = ConcurrentLinkedDeque()
     private val _messages = ProxySource<Message>()
     private val _events = ProxySource<Event>()
 
-    val messages: Source<Message>
-        get() = _messages
-    val events: Source<Event>
-        get() = _events
+    init {
+        val closeResource: (name: String, resource: () -> Unit) -> Unit = { name, resource ->
+            resources += {
+                LOGGER.info { "Closing resource $name" }
+                runCatching(resource).onFailure {
+                    LOGGER.error(it) { "cannot close resource $name" }
+                }
+            }
+        }
+        _events.addListener(eventListener)
+        _events.start()
+
+        startServers(closeResource)
+
+        httpServerCfg?.apply {
+            val httpServer = SenseHttpServer(this, notificationEventStat)
+            closeResource("http server", httpServer::close)
+        }
+
+        closeResource("event source", _events::close)
+        closeResource("message source", _messages::close)
+    }
 
     override fun handle(intervalEventId: EventID, event: GrpcEvent) {
         try {
@@ -61,7 +92,15 @@ class SenseProcessor: IProcessor {
         }
     }
 
-    override fun close() {}
+    override fun close() {
+        resources.descendingIterator().forEachRemaining { resource ->
+            try {
+                resource()
+            } catch (e: Exception) {
+                LOGGER.error(e) { "Cannot close resource ${resource::class}" }
+            }
+        }
+    }
 
     companion object {
         private val LOGGER = KotlinLogging.logger { }
