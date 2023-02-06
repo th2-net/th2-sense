@@ -25,17 +25,13 @@ import com.exactpro.th2.sense.app.cfg.HttpServerConfiguration
 import com.exactpro.th2.sense.app.notifier.http.SenseHttpServer
 import com.exactpro.th2.sense.app.processor.event.EventProcessorListener
 import com.exactpro.th2.sense.app.source.AbstractSource
-import com.exactpro.th2.sense.app.source.Source
 import com.exactpro.th2.sense.app.statistic.impl.NotificationEventStatistic
-import com.google.auto.service.AutoService
 import com.google.protobuf.TextFormat.shortDebugString
-import io.grpc.Server
 import mu.KotlinLogging
 import java.time.Instant
-import java.util.*
+import java.util.Deque
 import java.util.concurrent.ConcurrentLinkedDeque
 
-@AutoService(IProcessor::class)
 class SenseProcessor(
     eventListener: EventProcessorListener,
     httpServerCfg: HttpServerConfiguration?,
