@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Exactpro (Exactpro Systems Limited)
+ * Copyright 2022-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,23 +16,25 @@
 
 package com.exactpro.th2.sense.app.cfg
 
+import com.exactpro.th2.processor.api.IProcessorSettings
 import java.util.function.Function
 import java.util.stream.Collectors
 import com.exactpro.th2.sense.api.ProcessorId
 import com.exactpro.th2.sense.api.ProcessorSettings
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.util.StdConverter
+import com.google.auto.service.AutoService
 
+@AutoService(IProcessorSettings::class)
 data class SenseAppConfiguration(
-    val source: SourceConfiguration,
     @JsonDeserialize(converter = ListToMapConverter::class)
     val processors: Map<ProcessorId, ProcessorSettings>,
     val statistic: StatisticConfiguration = StatisticConfiguration(),
     val messagesCaching: CachingConfiguration = CachingConfiguration(),
     val eventsCaching: CachingConfiguration = CachingConfiguration(),
     val httpConfiguration: HttpServerConfiguration? = null,
-    val grpcConfiguration: GrpcSenseConfiguration = GrpcSenseConfiguration()
-)
+    val grpcConfiguration: GrpcSenseConfiguration = GrpcSenseConfiguration(),
+) : IProcessorSettings
 
 private class ListToMapConverter : StdConverter<List<ProcessorSettings>, Map<ProcessorId, ProcessorSettings>>() {
     override fun convert(value: List<ProcessorSettings>): Map<ProcessorId, ProcessorSettings> {

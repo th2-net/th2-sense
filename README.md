@@ -47,7 +47,7 @@ To use th2-sense you need:
     }
     
     application {
-        mainClass.set('com.exactpro.th2.sense.app.bootstrap.Main')
+        mainClass.set('com.exactpro.th2.processor.MainKt')
     }
     ```
    </details>
@@ -177,15 +177,10 @@ The source type. Currently supported:
 + mq - from MQ
 + crawler - from Crawler
 
-##### mq
+if source type is crawler then [Processor setting](#processorSettings) and [crawler-processor settings](https://github.com/th2-net/th2-processor-core-j/tree/TH2-4262-reduce-load-book-and-page#configuration-example) are required
 
-No additional configuration
-
-##### crawler
-
-**name** - processor name
-
-**version** - processor version
+#### processorSettings
+* name - name of crawler-processor
 
 #### processors
 
@@ -219,7 +214,9 @@ If specified the HTTP server will be started to allow notification submission.
 
 **port** - the port to start listening (if _0_ the random free port will be used)
 
-CR example:
+# CR example:
+
+## Crawler strategy
 
 ```yaml
 apiVersion: th2.exactpro.com/v1
@@ -228,42 +225,68 @@ metadata:
   name: sense
 spec:
   image-name: <image-name>
-  image-version: 0.0.1
+  image-version: 1.0.0
   type: th2-act
   custom-config:
-    source:
-      type: crawler
-      name: sense
-      version: 1
-      # or
-      # type: mq
     processors:
       - id: "processor id"
         param: 1
+    stateSessionAlias: my-processor-state
+    enableStoreState: false
+
+    crawler:
+       from: 2021-06-16T12:00:00.00Z
+       to: 2021-06-17T14:00:00.00Z
+
+       intervalLength: PT10M
+       syncInterval: PT10M
+       awaitTimeout: 10
+       awaitUnit: SECONDS
+
+       messages:
+          messageKinds:
+             - MESSAGE
+             - RAW_MESSAGES
+          bookToGroups:
+             book1:
+                - group1
+                - group2
+             book2:
+                - group1
+                - group2
+       events:
+          bookToScope:
+             book3:
+                - scope1
+                - scope2
+             book4:
+                - scope1
+                - scope2
   pins:
-    - name: crawler-server
-      connection-type: grpc-server
-      service-classes:
-      - com.exactpro.th2.crawler.dataprocessor.grpc.DataProcessorService
-      - th2.crawler.dataprocessor.DataProcessorService
-    - name: sense-server
-      connection-type: grpc-server
-      service-classes:
-        - com.exactpro.th2.sense.grpc.SenseService
-        - th2.sense.SenseService
-    - name: provider
-      connection-type: grpc-client
-      service-class: com.exactpro.th2.dataprovider.grpc.DataProviderService
-    - name: input_events
-      connection-type: mq
-      attributes:
-        - subscribe
-        - event
-    - name: input_messages
-      connection-type: mq
-      attributes:
-        - subscribe
-        - group
+    gprc:
+      client:
+        - name: to_data_provider
+          service-class: com.exactpro.th2.dataprovider.lw.grpc.DataProviderService
+          linkTo:
+             - box: lw-data-provider
+               pin: server
+        - name: to_data_provider_stream
+          service-class: com.exactpro.th2.dataprovider.lw.grpc.QueueDataProviderService
+          linkTo:
+            - box: lw-data-provider
+              pin: server
+      server:
+        - name: sense-server
+          connection-type: grpc-server
+          service-classes:
+            - com.exactpro.th2.sense.grpc.SenseService
+            - th2.sense.SenseService
+    mq:  
+      publishers:
+        - name: state
+          attributes:
+            - store
+      
   extended-settings:
     service:
       enabled: true
@@ -281,5 +304,54 @@ spec:
       requests:
         memory: 110Mi
         cpu: 50m
-
 ```
+
+## Realtime strategy
+
+```yaml
+apiVersion: th2.exactpro.com/v1
+kind: Th2Box
+metadata:
+   name: sense
+spec:
+  image-name: <image-name>
+  image-version: 1.0.0
+  type: th2-act
+  custom-config:
+    processors:
+      - id: "processor id"
+        param: 1
+    stateSessionAlias: my-processor-state
+    enableStoreState: false
+
+    realtime:
+      enableMessageSubscribtion: true
+      enableEventSubscribtion: false
+  pins:
+    grpc:
+      client:
+        - name: to_data_provider
+          service-class: com.exactpro.th2.dataprovider.lw.grpc.DataProviderService
+          linkTo:
+            - box: lw-data-provider
+              pin: server
+    mq:
+      subscribers:
+        - name: messages
+          attributes:
+            - group
+            - in
+        - name: events
+          attributes:
+            - event
+            - in
+      publishers:
+        - name: state
+          attributes:
+            - store
+```
+
+# Changelog
+## 1.0.0
+  + migration to `processor-core-j`
+  + migration to `book and pages`

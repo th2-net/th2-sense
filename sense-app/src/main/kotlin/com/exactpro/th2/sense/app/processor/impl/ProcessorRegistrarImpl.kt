@@ -24,11 +24,11 @@ import com.exactpro.th2.sense.app.processor.ProcessorKey
 import com.exactpro.th2.sense.app.processor.ProcessorProvider
 import com.exactpro.th2.sense.app.processor.ProcessorRegistrar
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 
 class ProcessorRegistrarImpl<T : Processor>(
     private val provider: ProcessorProvider<T>,
     private val holder: ProcessorHolder<T>,
-    private val mapper: ObjectMapper,
 ) : ProcessorRegistrar {
     override fun register(id: ProcessorId, settingsData: String?): ProcessorKey {
         val settings: ProcessorSettings = if (settingsData == null) {
@@ -37,7 +37,7 @@ class ProcessorRegistrarImpl<T : Processor>(
             requireNotNull(provider.processorSettings[id]) {
                 "cannot find settings for processor with id $id"
             }.let {
-                mapper.readValue(settingsData, it)
+                MAPPER.readValue(settingsData, it)
             }
         }
         val processor = checkNotNull(provider.loadProcessors(mapOf(id to settings))[id]) {
@@ -48,5 +48,9 @@ class ProcessorRegistrarImpl<T : Processor>(
 
     override fun unregister(key: ProcessorKey) {
         holder.removeProcessor(key)
+    }
+
+    companion object {
+        private val MAPPER = jacksonObjectMapper()
     }
 }
